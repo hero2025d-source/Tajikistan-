@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delta-177 · Field Shift</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root{--bg:#f6f7f4;--card:#fff;--ink:#1d2a24;--muted:#5f6f66;--acc:#2a9d8f;--acc2:#e9c46a;--bad:#d1495b;--line:#dfe5df}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#0f1f3d;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px}
+  header .logo{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#f4f1e8 0 30%,#1b2a5c 31%);border:3px solid #ffd166}
+  header h1{font-size:20px;margin:0} header small{color:#b9c4dd}
+  .wrap{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:18px;max-width:1500px;margin:auto}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  aside,.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  aside h3{font-size:15px;margin:16px 0 8px} aside h3:first-child{margin-top:0}
+  label{display:block;font-size:14px;margin:4px 0} select,input[type=number],input[type=password]{width:100%;padding:7px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .slider{display:grid;grid-template-columns:1fr auto;align-items:center;font-size:13px;gap:6px}
+  .slider input{grid-column:1/3;width:100%}
+  button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:15px;cursor:pointer}
+  button.secondary{background:#e7efe9;color:var(--ink)} button:disabled{opacity:.5}
+  #run{width:100%;margin-top:14px;font-weight:600}
+  .note{background:#eef6f4;border-left:4px solid var(--acc);padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:12px}
+  .warn{background:#fff4e0;border-left-color:#f2a541} .err{background:#fde8ea;border-left-color:var(--bad)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px} .tabs button{background:#e7efe9;color:var(--ink);font-size:14px;padding:8px 12px}
+  .tabs button.on{background:var(--acc);color:#fff}
+  .tab{display:none} .tab.on{display:block}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+  .card h4{margin:0 0 8px;font-size:16px} .bar{height:10px;background:#e7efe9;border-radius:6px;overflow:hidden;margin:6px 0}
+  .bar div{height:100%;background:var(--acc)} .kpis{display:flex;gap:10px;margin:8px 0}
+  .kpi{flex:1;background:#f3f6f3;border-radius:8px;padding:6px 8px;font-size:12px;color:var(--muted)} .kpi b{display:block;font-size:18px;color:var(--ink)}
+  .card ul{padding-left:18px;margin:4px 0 8px;font-size:13.5px} .card p{font-size:13.5px;margin:4px 0}
+  .best{border:2px solid var(--acc)} .badge{display:inline-block;background:var(--acc2);border-radius:6px;padding:2px 8px;font-size:12px;margin-bottom:6px}
+  table.cal{border-collapse:collapse;width:100%;font-size:12px;margin-bottom:14px} table.cal td,table.cal th{border:1px solid var(--line);padding:5px;text-align:center}
+  #mapcard{padding:0;overflow:hidden;margin-bottom:12px;position:relative}
+  #map{height:440px;width:100%} #mapcard.big #map{height:78vh}
+  .maptools{position:absolute;top:10px;left:56px;right:60px;z-index:1000;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+  .maptools>*{pointer-events:auto;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .datebox{background:#fff;border-radius:10px;padding:4px 10px;font-size:13px;display:flex;align-items:center;gap:6px}
+  .datebox input{min-width:0!important;flex:none!important;padding:5px!important;font-size:13px!important;border:1px solid var(--line)!important}
+  .maptools input{flex:1;min-width:180px;max-width:380px;padding:10px 12px;border:0;border-radius:10px;font-size:15px}
+  .maptools button{background:#fff;color:var(--ink);padding:9px 12px;border-radius:10px;font-size:14px}
+  .maptools button.go{background:var(--acc);color:#fff}
+  .mapinfo{position:absolute;bottom:26px;left:10px;z-index:1000;background:rgba(15,31,61,.85);color:#fff;padding:7px 11px;border-radius:9px;font-size:13px}
+  .pin{width:26px;height:26px;border-radius:50% 50% 50% 0;background:#d1495b;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .me{width:18px;height:18px;border-radius:50%;background:#2b7de9;border:3px solid #fff;box-shadow:0 0 0 6px rgba(43,125,233,.25)}
+  #chat{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfcfb;margin:10px 0}
+  .msg{margin:6px 0;padding:8px 10px;border-radius:10px;max-width:85%;white-space:pre-wrap;font-size:14px}
+  .msg.user{background:#dff1ee;margin-left:auto} .msg.assistant{background:#f1f1ec}
+  .chatrow{display:flex;gap:8px} .chatrow input{flex:1;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  .muted{color:var(--muted);font-size:13px} #status{min-height:22px}
+  details{font-size:13px}
+  header{justify-content:space-between;flex-wrap:wrap} header .hl{display:flex;align-items:center;gap:14px}
+  header .hbtn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);font-size:14px;padding:8px 12px;margin-left:6px}
+  .kpis4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px} @media(max-width:900px){.kpis4{grid-template-columns:1fr 1fr}}
+  .kt{background:#0f1f3d;color:#f6f4ec;border-radius:12px;padding:14px 16px} .kt .v{font-size:28px;font-weight:700;color:#e9c46a;margin:4px 0}
+  .kt .l{font-size:13px;color:#bfd0e4} .kt .s{font-size:12px;color:#bfd0e4}
+  .scen{background:#fff4e0;border-radius:8px;padding:8px;font-size:13px;margin-top:6px}
+  dl.gl dt{font-weight:600;margin-top:10px} dl.gl dd{margin:2px 0 0 0;font-size:14px;color:var(--muted)}
+  @media print{aside,.tabs,.maptools,#mapcard,header .hbtn,#run,.chatrow,details summary{display:none!important}
+    .wrap{display:block;padding:0} .tab{display:block!important;page-break-inside:avoid;margin-bottom:16px} .card{box-shadow:none}
+    body{background:#fff} .cards{grid-template-columns:1fr 1fr}}
+  /* ---------- simple mode ---------- */
+  .simple{max-width:780px;margin:22px auto;padding:0 14px}
+  .sq{background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px 24px;box-shadow:0 6px 24px rgba(20,33,61,.07)}
+  .sq h2{font-size:30px;margin:6px 0 14px;line-height:1.2} .sq .hint{color:var(--muted);font-size:17px;margin:0 0 10px}
+  .dots{display:flex;gap:8px;margin-bottom:6px} .dots span{flex:1;height:8px;border-radius:5px;background:#e3e9e4} .dots span.on{background:var(--acc)}
+  .stepno{color:var(--acc);font-weight:700;font-size:15px;letter-spacing:1px}
+  .big{display:flex;align-items:center;gap:14px;width:100%;text-align:left;font-size:22px;padding:18px 20px;margin:10px 0;background:#eef6f4;color:var(--ink);border:2px solid transparent;border-radius:16px;cursor:pointer}
+  .big:hover,.big:focus{border-color:var(--acc);outline:none} .big .em{font-size:32px;width:42px;text-align:center}
+  .big small{display:block;font-size:15px;color:var(--muted)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px} @media(max-width:600px){.grid2{grid-template-columns:1fr}}
+  .navrow{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap}
+  .link{background:none;color:var(--acc);padding:6px 0;font-size:17px;text-decoration:underline}
+  .answer{background:#0f1f3d;color:#f6f4ec;border-radius:20px;padding:26px 24px}
+  .answer .ok{font-size:18px;color:#e9c46a;font-weight:700;letter-spacing:1px} .answer h2{font-size:34px;margin:6px 0 18px;color:#fff}
+  .fact{display:flex;gap:14px;align-items:flex-start;font-size:20px;line-height:1.4;margin:12px 0} .fact .em{font-size:28px;width:36px;text-align:center}
+  .answer .why{background:#1a2d52;border-radius:14px;padding:14px 18px;margin-top:14px;font-size:16px;line-height:1.5}
+  .bigbtn{font-size:19px;padding:14px 20px;border-radius:14px} .ghost{background:#fff;color:var(--ink);border:2px solid var(--line)}
+  .spin{width:46px;height:46px;border:5px solid #e3e9e4;border-top-color:var(--acc);border-radius:50%;animation:sp 1s linear infinite;margin:18px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .langs{display:flex;gap:6px;justify-content:flex-end;margin-bottom:10px} .langs button{background:#e7efe9;color:var(--ink);font-size:15px;padding:7px 12px}
+  .langs button.on{background:var(--acc);color:#fff}
+  /* ---------- dashboard layout ---------- */
+  .app{max-width:1500px;margin:auto;padding:18px}
+  .top{display:grid;grid-template-columns:400px 1fr;gap:18px;align-items:start} @media(max-width:980px){.top{grid-template-columns:1fr}}
+  aside.panel{padding:6px 18px 18px;position:sticky;top:10px} @media(max-width:980px){aside.panel{position:static}}
+  .stepc{border-bottom:1px solid var(--line);padding:14px 0} .stepc:last-of-type{border-bottom:0}
+  .sh{display:flex;align-items:center;gap:10px;margin-bottom:10px} .sh h3{margin:0!important;font-size:16px!important}
+  .sn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+  .seg{display:flex;flex-wrap:wrap;gap:6px} .seg label{position:relative;margin:0;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer;font-size:14px;background:#f8faf8}
+  .seg.col label{width:100%} .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label:has(input:checked){background:var(--acc);color:#fff;border-color:var(--acc)}
+  .seg .cbox{width:100%} .seg .cbox input{position:static;opacity:1;pointer-events:auto}
+  .cbox{background:#f3f7f4;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:4px}
+  .crow{display:grid;grid-template-columns:52px 1fr 1fr;gap:6px;align-items:center;margin:6px 0;font-size:13px} .crow select,.crow input{padding:6px;font-size:13px;border:1px solid var(--line);border-radius:8px;min-width:0}
+  #otherBox{display:flex;gap:6px} #otherBox input{flex:1 1 60%;min-width:120px!important} #otherBox select{width:auto;flex:0 1 40%} .crowhint{font-size:12px;color:var(--muted)}
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:6px} .chips button{background:#f8faf8;color:var(--ink);border:1.5px solid var(--line);font-size:14px;padding:10px 8px;text-align:left}
+  .chips button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .panel details summary{cursor:pointer;color:var(--acc);font-size:14px;margin-top:10px}
+  .panel select{margin-top:2px} .sub{font-size:13px;color:var(--muted);margin:10px 0 4px}
+  #map{height:380px}
+  .answer{margin:12px 0} .answer h2{font-size:30px;margin:4px 0 10px} .answer .fact{font-size:18px;margin:8px 0}
+  .hlang{display:inline-flex;gap:4px;margin-right:8px} .hlang button{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);font-size:13px;padding:7px 10px}
+  .hlang button.on{background:#e9c46a;color:#14213d;border-color:#e9c46a}
+  .answer.empty{background:#e6eee7;color:var(--ink)} .answer.empty h2{color:var(--ink)}
+</style>
+</head>
+<body>
+<header><div class="hl"><div class="logo"></div><div><h1 id="t_title"></h1><small>Delta-177 · NASA Space Apps Challenge 2026 · Field Shift</small></div></div><div><span class="hlang" id="hlang"></span><button class="hbtn" id="shareBtn"></button><button class="hbtn" id="printBtn"></button></div></header>
+<div class="app" id="full">
+<div class="top">
+<aside class="panel">
+  <select id="lang" style="display:none"><option value="en" selected>English</option><option value="ru">Русский</option><option value="tj">Тоҷикӣ</option></select>
+  <div class="stepc"><div class="sh"><span class="sn">1</span><h3 id="t_where"></h3></div>
+    <select id="place"></select>
+    <div class="row2" style="margin-top:6px"><input id="lat" type="number" step="0.01"><input id="lon" type="number" step="0.01"></div>
+    <div class="muted" id="t_maphint" style="margin-top:6px"></div></div>
+  <div class="stepc"><div class="sh"><span class="sn">2</span><h3 id="t_current"></h3></div>
+    <div id="currentBox" class="seg col"></div>
+    <p class="sub" id="t_prev"></p><select id="prev"></select>
+    <input id="prevOther" style="display:none;margin-top:6px;width:100%;padding:7px;border:1px solid var(--line);border-radius:8px;font-size:14px"></div>
+  <div class="stepc"><div class="sh"><span class="sn">3</span><h3 id="t_water"></h3></div><div id="waterBox" class="seg"></div></div>
+  <div class="stepc"><div class="sh"><span class="sn">4</span><h3 id="t_prio"></h3></div><div class="chips" id="goalBox"></div>
+    <details><summary id="t_fine"></summary><div id="sliders" style="margin-top:8px"></div></details></div>
+  <div class="stepc"><details><summary style="margin:0"><span class="sn" style="width:22px;height:22px;font-size:12px">5</span> <span id="t_scen"></span></summary>
+    <div class="slider" style="margin-top:10px"><span id="t_srain"></span><b id="v_srain">0%</b><input type="range" min="-50" max="30" step="10" value="0" id="s_rain"></div>
+    <div class="slider"><span id="t_stemp"></span><b id="v_stemp">+0 °C</b><input type="range" min="0" max="3" step="0.5" value="0" id="s_temp"></div></details>
+    <div class="scen" id="scenNote" style="display:none"></div></div>
+  <button id="run"></button>
+</aside>
+<div class="right">
+  <div class="card" id="mapcard">
+    <div class="maptools">
+      <input id="search" autocomplete="off"><button class="go" id="searchBtn">🔍</button>
+      <button id="locBtn"></button><label class="datebox" id="t_gibs" title=""><span id="t_gibslbl"></span> <input type="date" id="gibsDate"></label><button id="bigBtn">⛶</button>
+    </div>
+    <div id="map"></div>
+    <div class="mapinfo" id="mapinfo"></div>
+  </div>
+  <div id="status"></div>
+  <div id="answer"></div>
+  <div class="kpis4" id="kpis"></div>
+</div>
+</div>
+  <div class="note" id="t_disclaimer"></div>
+  <div class="tabs" id="tabs"></div>
+  <section class="tab on" id="tab_rec"><div id="bestLine" hidden></div><div class="cards" id="cards"></div>
+    <p style="margin-top:12px"><button class="secondary" id="dl"></button></p></section>
+  <section class="tab" id="tab_water"><div class="card"><div id="chWater" style="height:430px"></div></div></section>
+  <section class="tab" id="tab_climate"><div class="card"><div id="chClimate" style="height:420px"></div></div>
+    <div class="card" style="margin-top:12px"><h4 id="t_ndvi"></h4><p class="muted" id="ndviStatus"></p><div id="chNdvi" style="height:320px"></div><p id="ndviNote" style="font-size:14px"></p></div>
+    <div class="cards" style="margin-top:12px"><div class="card"><div id="chRisk" style="height:320px"></div></div><div class="card"><div id="chSoil" style="height:320px"></div></div></div>
+    <div class="card" style="margin-top:12px"><h4 id="t_trend"></h4><ul id="trends"></ul><div id="chTrend" style="height:280px"></div></div></section>
+  <section class="tab" id="tab_cal"><div class="card"><p><b id="t_cal"></b></p><div id="calendars"></div></div></section>
+  <section class="tab" id="tab_data"><div class="card" id="dataInfo"></div></section>
+</div>
+
+<script>
+"use strict";
+// ======================================================================= i18n
+const UI={
+ title:{ru:"Field Shift — какой севооборот выбрать?",en:"Field Shift — which crop rotation?",tj:"Field Shift — кадом киштгардон беҳтар аст?"},
+ disclaimer:{ru:"⚠️ Инструмент подсказывает и показывает закономерности по данным NASA, но не заменяет опыт фермера и совет агронома. Окончательное решение — за вами.",en:"⚠️ This tool highlights patterns and options from NASA data; it does not replace farmer judgment or local agronomist advice. The final decision is yours.",tj:"⚠️ Ин абзор танҳо маслиҳат медиҳад ва таҷрибаи деҳқон ва агрономро иваз намекунад."},
+ where:{ru:"1. Где ваше поле?",en:"1. Where is your field?",tj:"1. Майдони шумо дар куҷост?"},
+ maphint:{ru:"Нажмите на своё поле на карте или найдите село через поиск.",en:"Tap your field on the map or search for your village.",tj:"Ба майдони худ дар харита пахш кунед ё деҳаро ҷустуҷӯ кунед."},
+ search_ph:{ru:"Поиск: село, джамоат, район…",en:"Search: village, district…",tj:"Ҷустуҷӯ: деҳа, ҷамоат, ноҳия…"},
+ myloc:{ru:"📍 Я здесь",en:"📍 My location",tj:"📍 Ман дар инҷо"},
+ sat:{ru:"Спутник",en:"Satellite",tj:"Моҳвора"}, streets:{ru:"Схема",en:"Map",tj:"Харита"}, labels:{ru:"Подписи и границы",en:"Labels & borders",tj:"Номҳо ва сарҳадҳо"},
+ gibs_lbl:{ru:"🛰️ Снимок NASA за",en:"🛰️ NASA image date",tj:"🛰️ Акси NASA барои"},
+ l_true:{ru:"NASA MODIS: снимок за дату",en:"NASA MODIS: true colour (date)",tj:"NASA MODIS: акс (сана)"},
+ l_ndvi:{ru:"NASA MODIS: зелень растений (NDVI, 8 дней)",en:"NASA MODIS: vegetation greenness (NDVI, 8-day)",tj:"NASA MODIS: сабзии растаниҳо (NDVI)"},
+ l_lst:{ru:"NASA MODIS: температура поверхности (день)",en:"NASA MODIS: land surface temperature (day)",tj:"NASA MODIS: ҳарорати сатҳ"},
+ ndvi_t:{ru:"🛰️ Зелень вашего поля по снимкам NASA MODIS (NDVI, 250 м)",en:"🛰️ Your field’s greenness from NASA MODIS (NDVI, 250 m)",tj:"🛰️ Сабзии майдони шумо аз аксҳои NASA MODIS (NDVI)"},
+ ndvi_load:{ru:"⏳ Загружаю снимки MODIS за 2 года для этой точки…",en:"⏳ Loading 2 years of MODIS data for this point…",tj:"⏳ Боркунии аксҳои MODIS…"},
+ ndvi_ok:{ru:"Источник: NASA MODIS MOD13Q1 через ORNL DAAC · {n} снимков, {a} – {b}",en:"Source: NASA MODIS MOD13Q1 via ORNL DAAC · {n} composites, {a} – {b}",tj:"Манбаъ: NASA MODIS MOD13Q1 · {n} акс"},
+ ndvi_err:{ru:"Снимки MODIS сейчас недоступны ({e}). Остальной анализ работает.",en:"MODIS data unavailable right now ({e}). The rest of the analysis works.",tj:"Аксҳои MODIS дастрас нестанд ({e})."},
+ ndvi_axis:{ru:"NDVI (0 = голая земля, 0.8 = густая зелень)",en:"NDVI (0 = bare soil, 0.8 = dense green)",tj:"NDVI (0 = замини луч, 0.8 = сабз)"},
+ ndvi_bare:{ru:"За последние 12 месяцев поле было почти без растений (NDVI &lt; 0.2) в: <b>{m}</b>. Эти месяцы можно занять промежуточной культурой.",en:"In the last 12 months the field was nearly bare (NDVI &lt; 0.2) in: <b>{m}</b>. These months could hold a catch crop.",tj:"Дар 12 моҳи охир майдон қариб холӣ буд: <b>{m}</b>."},
+ ndvi_green:{ru:"За последние 12 месяцев поле было зелёным почти весь год — голых периодов не видно.",en:"In the last 12 months the field was green most of the year — no clear bare periods.",tj:"Майдон қариб тамоми сол сабз буд."},
+ ndvi_hint:{ru:"Совет: точка должна стоять прямо на поле, а не на дороге или селе — пиксель 250 м.",en:"Tip: place the pin right on the field, not on a road or village — the pixel is 250 m.",tj:"Нуқтаро рост ба майдон гузоред — пиксел 250 м."},
+ share:{ru:"🔗 Поделиться",en:"🔗 Share",tj:"🔗 Фиристодан"}, print:{ru:"🖨️ Отчёт",en:"🖨️ Report",tj:"🖨️ Ҳисобот"},
+ copied:{ru:"✅ Ссылка с вашим полем и настройками скопирована: {u}",en:"✅ Link with your field and settings copied: {u}",tj:"✅ Пайванд нусхабардорӣ шуд: {u}"},
+ scen:{ru:"5. Что если климат изменится?",en:"5. What if the climate changes?",tj:"5. Агар иқлим тағйир ёбад?"},
+ srain:{ru:"Осадки",en:"Rainfall",tj:"Борон"}, stemp:{ru:"Теплее на",en:"Warmer by",tj:"Гармтар"},
+ scen_on:{ru:"🔶 Сценарий: осадки {r}, температура +{t} °C. Все цифры пересчитаны для этого будущего.",en:"🔶 Scenario: rainfall {r}, temperature +{t} °C. All numbers are recalculated for this future.",tj:"🔶 Сенарий: борон {r}, ҳарорат +{t} °C."},
+ k_rain:{ru:"Осадков в год (NASA)",en:"Rainfall per year (NASA)",tj:"Борон дар сол (NASA)"},
+ k_eto:{ru:"а испаряется ~{v} мм — разницу даёт полив",en:"while ~{v} mm evaporates — irrigation fills the gap",tj:"бухоршавӣ ~{v} мм"},
+ k_best:{ru:"Лучший вариант для вас",en:"Best option for you",tj:"Беҳтарин барои шумо"},
+ k_water:{ru:"Вода по сравнению с текущим",en:"Water vs current rotation",tj:"Об нисбат ба ҷорӣ"},
+ k_bare:{ru:"Пустых месяцев в году",en:"Bare months per year",tj:"Моҳҳои холӣ дар сол"},
+ k_heat:{ru:"Жарких дней (>35 °C) в году",en:"Hot days (>35 °C) per year",tj:"Рӯзҳои гарм дар сол"},
+ k_saved:{ru:"мм/год экономия",en:"mm/yr saved",tj:"мм/сол сарфа"}, k_more:{ru:"мм/год больше",en:"mm/yr more",tj:"мм/сол зиёд"},
+ k_was:{ru:"было {v} при текущем",en:"was {v} with current",tj:"ҷорӣ: {v}"},
+ k_trend:{ru:"тренд {v} за 10 лет",en:"trend {v} per decade",tj:"тамоюл {v} дар 10 сол"},
+ gloss:{ru:"Словарь простыми словами",en:"Glossary in plain words",tj:"Луғат бо забони содда"},
+ cell:{ru:"Ячейка данных NASA POWER (~50 км)",en:"NASA POWER data cell (~50 km)",tj:"Ячейкаи маълумоти NASA (~50 км)"},
+ here:{ru:"Анализировать это поле",en:"Analyze this field",tj:"Таҳлили ин майдон"},
+ field:{ru:"Ваше поле",en:"Your field",tj:"Майдони шумо"},
+ notfound:{ru:"Не найдено: {q}",en:"Not found: {q}",tj:"Ёфт нашуд: {q}"},
+ geoerr:{ru:"Не удалось определить местоположение: {e}",en:"Could not get your location: {e}",tj:"Ҷойгиршавӣ муайян нашуд: {e}"},
+ custom:{ru:"Своя точка",en:"Custom point",tj:"Нуқтаи худ"},
+ current:{ru:"2. Что вы сеете сейчас?",en:"2. What do you grow now?",tj:"2. Ҳоло чӣ мекоред?"},
+ prev_q:{ru:"2а. Что росло на поле до посадки?",en:"2a. What grew on the field before?",tj:"2а. Пеш аз кишт дар майдон чӣ буд?"},
+ prev_other_ph:{ru:"Впишите культуру…",en:"Type the crop…",tj:"Зироатро нависед…"},
+ water:{ru:"3. Сколько поливной воды доступно?",en:"3. How much irrigation water do you have?",tj:"3. Чӣ қадар оби обёрӣ доред?"},
+ water_opts:{ru:["Мало","Средне","Достаточно"],en:["Little","Medium","Enough"],tj:["Кам","Миёна","Кифоя"]},
+ prio:{ru:"4. Что для вас важнее?",en:"4. What matters most to you?",tj:"4. Барои шумо чӣ муҳим аст?"},
+ w_water:{ru:"Экономия воды",en:"Save water",tj:"Сарфаи об"}, w_income:{ru:"Доход",en:"Income",tj:"Даромад"},
+ w_soil:{ru:"Здоровье почвы",en:"Soil health",tj:"Саломатии хок"}, w_forage:{ru:"Корм для скота",en:"Livestock feed",tj:"Хӯроки чорво"},
+ w_risk:{ru:"Меньше риска (жара, заморозки)",en:"Lower risk (heat, frost)",tj:"Хатари камтар"},
+ demo:{ru:"Демо-данные (без интернета)",en:"Demo data (offline)",tj:"Маълумоти намунавӣ"},
+ run:{ru:"Анализировать",en:"Analyze",tj:"Таҳлил"},
+ loading:{ru:"⏳ Загружаю 24 года данных NASA POWER… (10–40 сек)",en:"⏳ Loading 24 years of NASA POWER data… (10–40 s)",tj:"⏳ Боркунии маълумоти NASA POWER…"},
+ loaded:{ru:"✅ Данные NASA POWER загружены: {n} дней ({y1}–{y2}).",en:"✅ NASA POWER data loaded: {n} days ({y1}–{y2}).",tj:"✅ Маълумоти NASA бор шуд: {n} рӯз."},
+ load_err:{ru:"❌ Не удалось загрузить NASA POWER: {e}. Проверьте интернет и попробуйте ещё раз.",en:"❌ Could not load NASA POWER: {e}. Check your internet and try again.",tj:"❌ Боркунии NASA нашуд: {e}."},
+ demo_banner:{ru:"🔶 ДЕМО-РЕЖИМ: синтетические данные, только для проверки интерфейса.",en:"🔶 DEMO MODE: synthetic data, for interface testing only.",tj:"🔶 РЕҶАИ НАМУНАВӢ: маълумоти сунъӣ."},
+ tabs:{ru:["🌾 Рекомендации","💧 Вода","🌡️ Климат и риски","📅 Календарь поля","🛰️ Данные NASA"],en:["🌾 Recommendations","💧 Water","🌡️ Climate & risks","📅 Field calendar","🛰️ NASA data"],tj:["🌾 Тавсияҳо","💧 Об","🌡️ Иқлим","📅 Тақвим","🛰️ Маълумоти NASA"]},
+ score:{ru:"Оценка",en:"Score",tj:"Баҳо"}, best:{ru:"Лучше всего по вашим приоритетам",en:"Best match for your priorities",tj:"Беҳтарин барои шумо"},
+ why:{ru:"Почему предложено",en:"Why suggested",tj:"Чаро"}, evidence:{ru:"Что показывают данные",en:"What the data shows",tj:"Маълумот чӣ нишон медиҳад"},
+ benefits:{ru:"✅ Польза",en:"✅ Benefits",tj:"✅ Фоида"}, risks:{ru:"⚠️ Риски — проверить на месте",en:"⚠️ Risks — check locally",tj:"⚠️ Хатарҳо"},
+ gaps:{ru:"❔ Чего мы не знаем",en:"❔ Information gaps",tj:"❔ Чиро намедонем"},
+ irr:{ru:"Полив, мм/год",en:"Irrigation, mm/yr",tj:"Обёрӣ, мм/сол"}, bare:{ru:"Пустое поле, мес/год",en:"Bare, months/yr",tj:"Холӣ, моҳ/сол"},
+ download:{ru:"📄 Скачать памятку",en:"📄 Download summary",tj:"📄 Боргирии хулоса"},
+ water_title:{ru:"Сколько воды нужно полить сверх осадков (мм в месяц)",en:"Irrigation needed beyond rainfall (mm per month)",tj:"Оби лозимӣ ғайр аз борон (мм/моҳ)"},
+ climate_title:{ru:"Средний год: осадки, испарение и температура",en:"Average year: rainfall, evaporation and temperature",tj:"Соли миёна: борон, бухоршавӣ ва ҳарорат"},
+ precip:{ru:"Осадки, мм",en:"Rainfall, mm",tj:"Борон, мм"}, eto:{ru:"Испарение (ETo), мм",en:"Evaporation demand (ETo), mm",tj:"Бухоршавӣ, мм"},
+ tmax:{ru:"Макс. температура, °C",en:"Max temperature, °C",tj:"Ҳарорати баланд, °C"},
+ risk_cal:{ru:"Календарь рисков (дней в месяц)",en:"Risk calendar (days per month)",tj:"Тақвими хатарҳо"},
+ heat_days:{ru:"Жара >35 °C",en:"Heat >35 °C",tj:"Гармӣ >35 °C"}, frost_days:{ru:"Заморозки <0 °C",en:"Frost <0 °C",tj:"Сармо <0 °C"},
+ soil_wet:{ru:"Влажность корнеобитаемого слоя (0–1)",en:"Root-zone soil wetness (0–1)",tj:"Намии хок (0–1)"},
+ trend:{ru:"Как меняется ваш климат",en:"How your climate is changing",tj:"Иқлими шумо чӣ тавр тағйир меёбад"},
+ t_summer:{ru:"Летняя макс. температура: {v} °C за 10 лет",en:"Summer max temperature: {v} °C per decade",tj:"Ҳарорати тобистон: {v} °C дар 10 сол"},
+ t_heat:{ru:"Жарких дней (>35 °C): {v} за 10 лет",en:"Hot days (>35 °C): {v} per decade",tj:"Рӯзҳои гарм: {v} дар 10 сол"},
+ t_precip:{ru:"Осадки за год: {v} мм за 10 лет",en:"Annual rainfall: {v} mm per decade",tj:"Борон дар сол: {v} мм дар 10 сол"},
+ t_spring:{ru:"Весенние осадки: {v} мм за 10 лет",en:"Spring rainfall: {v} mm per decade",tj:"Борони баҳорӣ: {v} мм"},
+ frost_dates:{ru:"Последний весенний заморозок ≈ {a}, первый осенний ≈ {b} (медиана {y1}–{y2}).",en:"Last spring frost ≈ {a}, first autumn frost ≈ {b} (median {y1}–{y2}).",tj:"Сармои охири баҳор ≈ {a}, аввали тирамоҳ ≈ {b}."},
+ cal:{ru:"Что растёт на поле каждый месяц (пусто = поле голое)",en:"What grows each month (blank = bare field)",tj:"Ҳар моҳ дар майдон чӣ мерӯяд"},
+ year:{ru:"Год",en:"Year",tj:"Сол"},
+ aiintro:{ru:"Спросите о своём поле: «Успею ли посеять маш после пшеницы?», «Где мне не хватит воды?». Сначала нажмите «Анализировать».",en:"Ask about your field: “Can I grow mung bean after wheat?”, “When will I run short of water?”. Run the analysis first.",tj:"Дар бораи майдонатон пурсед. Аввал «Таҳлил»-ро пахш кунед."},
+ keysum:{ru:"🔑 Подключить ИИ Claude (по желанию)",en:"🔑 Connect Claude AI (optional)",tj:"🔑 Пайваст кардани Claude AI"},
+ keyhelp:{ru:"Вставьте ключ API с console.anthropic.com. Ключ хранится только в этом браузере и отправляется только в Anthropic. Не публикуйте файл с ключом. Без ключа работает простой офлайн-помощник.",en:"Paste an API key from console.anthropic.com. It is stored only in this browser and sent only to Anthropic. Without a key a simple offline helper answers.",tj:"Калиди API-ро аз console.anthropic.com гузоред."},
+ ai_local:{ru:"🤖 Работает локальная модель Delta-177 на вашем компьютере (без интернета и ключей). Ответ может занять 20–90 секунд.",en:"🤖 Local model Delta-177 runs on your computer (no internet, no keys). An answer may take 20–90 s.",tj:"🤖 Модели маҳаллии Delta-177 дар компютери шумо кор мекунад."},
+ ai_nolocal:{ru:"Локальная модель Delta-177 не найдена — запустите setup_ai.bat (один раз) и откройте Ollama.",en:"Local model Delta-177 not found — run setup_ai.bat once and start Ollama.",tj:"Модели Delta-177 ёфт нашуд — setup_ai.bat-ро иҷро кунед."},
+ thinking:{ru:"Delta-177 думает…",en:"Delta-177 is thinking…",tj:"Delta-177 фикр мекунад…"},
+ ai_on:{ru:"🤖 Режим: Claude AI",en:"🤖 Mode: Claude AI",tj:"🤖 Реҷа: Claude AI"}, ai_off:{ru:"🤖 Режим: офлайн-помощник (без ключа)",en:"🤖 Mode: offline helper (no key)",tj:"🤖 Реҷа: офлайн"},
+ ask_ph:{ru:"Ваш вопрос…",en:"Your question…",tj:"Саволи шумо…"}, need_run:{ru:"Сначала нажмите «Анализировать».",en:"Please run the analysis first.",tj:"Аввал «Таҳлил»-ро пахш кунед."},
+};
+const GLOSS={ru:[["ETo — испарение","Сколько воды в день уходит из почвы и растений в воздух из-за жары, солнца и ветра. Чем больше ETo, тем больше нужно поливать."],
+ ["NDVI — индекс зелени","Спутник измеряет, насколько поле зелёное: 0 — голая земля, 0.3 — слабые всходы, 0.6–0.8 — густая зелень."],
+ ["Тепловые единицы (°C·сут)","Сумма тепла выше 10 °C за период. Каждой культуре нужно своё количество, чтобы успеть созреть."],
+ ["Влажность корнеобитаемого слоя","Насколько влажна почва там, где корни (0 — сухо, 1 — насыщено водой). Рассчитана моделью NASA по спутниковым данным."],
+ ["Спутник или прибор в поле?","Данные NASA — среднее по большой ячейке. Прибор в поле точнее для одной точки. Лучше всего использовать оба."],
+ ["Севооборот","Чередование культур на одном поле по годам, чтобы почва отдыхала, а вредители не накапливались."]],
+ en:[["ETo — evapotranspiration","How much water leaves the soil and plants each day because of heat, sun and wind. Higher ETo means more irrigation."],
+ ["NDVI — greenness index","Satellites measure how green a field is: 0 is bare soil, 0.3 weak growth, 0.6–0.8 dense green crops."],
+ ["Heat units (GDD)","Sum of heat above 10 °C over a period. Each crop needs a certain amount to ripen in time."],
+ ["Root-zone soil wetness","How wet the soil is where roots are (0 dry, 1 saturated), modelled by NASA from satellite data."],
+ ["Satellite or field sensor?","NASA data average a large cell; a field sensor is more exact for one point. Combining both works best."],
+ ["Crop rotation","Changing crops on the same field over the years so the soil recovers and pests do not build up."]]};
+const MONTHS={ru:["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"],en:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],tj:["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"]};
+let LANG="en";
+const T=(k,kw)=>{let v=UI[k][LANG]??UI[k].en; if(kw&&typeof v==="string")for(const[a,b]of Object.entries(kw))v=v.replaceAll("{"+a+"}",b); return v;};
+const fmt=(v,d=0,sign=false)=>isFinite(v)?((sign&&v>0?"+":"")+v.toFixed(d)):"—";
+// ---- labels for the dashboard (answer card, goals)
+const SUI={
+ c_btn:{ru:"✏️ Свой вариант — выбрать или вписать",en:"✏️ My own — choose or type crops",tj:"✏️ Варианти худ — интихоб ё навиштан"},
+ c_none_main:{ru:"— основная культура —",en:"— main crop —",tj:"— зироати асосӣ —"},
+ c_none_second:{ru:"— второй урожай: нет —",en:"— second crop: none —",tj:"— ҳосили дуюм: не —"},
+ c_other:{ru:"✏️ Другая — вписать",en:"✏️ Other — type it",tj:"✏️ Дигар — нависед"},
+ c_other_ph:{ru:"Название культуры",en:"Crop name",tj:"Номи зироат"},
+ c_s_spring:{ru:"растёт весна–лето",en:"grows spring–summer",tj:"баҳор–тобистон"},
+ c_s_winter:{ru:"озимая: осень–весна",en:"winter: autumn–spring",tj:"тирамоҳӣ: тирамоҳ–баҳор"},
+ c_s_summer:{ru:"летом после уборки",en:"summer, after harvest",tj:"тобистон, пас аз ҷамъоварӣ"},
+ c_hint:{ru:"Для каждого года: основная культура и (если есть) второй урожай после неё. Пустые годы не учитываются.",en:"For each year: the main crop and, if any, a second crop after it. Empty years are skipped.",tj:"Барои ҳар сол: зироати асосӣ ва ҳосили дуюм."},
+ fine:{ru:"⚙️ Тонкая настройка",en:"⚙️ Fine-tune",tj:"⚙️ Танзими дақиқ"},
+ mode_simple:{ru:"🧭 Простой режим",en:"🧭 Simple mode",tj:"🧭 Реҷаи содда"},
+ mode_full:{ru:"🔬 Подробный режим",en:"🔬 Detailed mode",tj:"🔬 Реҷаи муфассал"},
+ step:{ru:"ШАГ {n} ИЗ 4",en:"STEP {n} OF 4",tj:"ҚАДАМИ {n} АЗ 4"},
+ q1:{ru:"Где ваше поле?",en:"Where is your field?",tj:"Майдони шумо дар куҷост?"},
+ h1:{ru:"Выберите район или нажмите «Я на поле».",en:"Choose your district or tap “I am on my field”.",tj:"Ноҳияро интихоб кунед ё «Ман дар майдонам»-ро пахш кунед."},
+ here:{ru:"Я сейчас на поле",en:"I am on my field now",tj:"Ман ҳоло дар майдонам"},
+ here_s:{ru:"определим место по телефону",en:"we use your phone’s location",tj:"ҷойро аз телефон муайян мекунем"},
+ q2:{ru:"Что вы сеете сейчас?",en:"What do you grow now?",tj:"Ҳоло чӣ мекоред?"},
+ q3:{ru:"Сколько у вас воды для полива?",en:"How much irrigation water do you have?",tj:"Барои обёрӣ чӣ қадар об доред?"},
+ w_low:{ru:"Мало",en:"Little",tj:"Кам"}, w_low_s:{ru:"часто не хватает",en:"often not enough",tj:"аксар намерасад"},
+ w_med:{ru:"Средне",en:"Medium",tj:"Миёна"}, w_med_s:{ru:"обычно хватает",en:"usually enough",tj:"одатан мерасад"},
+ w_high:{ru:"Достаточно",en:"Enough",tj:"Кифоя"}, w_high_s:{ru:"воды много",en:"plenty of water",tj:"об бисёр"},
+ q4:{ru:"Что для вас важнее всего?",en:"What matters most to you?",tj:"Барои шумо чӣ аз ҳама муҳим аст?"},
+ p_water:{ru:"Сэкономить воду",en:"Save water",tj:"Сарфаи об"}, p_income:{ru:"Больше дохода",en:"More income",tj:"Даромади бештар"},
+ p_soil:{ru:"Здоровая почва",en:"Healthy soil",tj:"Хоки солим"}, p_forage:{ru:"Корм для скота",en:"Feed for livestock",tj:"Хӯроки чорво"},
+ back:{ru:"← Назад",en:"← Back",tj:"← Бозгашт"},
+ loading:{ru:"Получаем данные со спутников NASA для вашего поля…",en:"Getting NASA satellite data for your field…",tj:"Маълумоти моҳвораҳои NASA гирифта мешавад…"},
+ loading_s:{ru:"Обычно 10–40 секунд",en:"Usually 10–40 seconds",tj:"Одатан 10–40 сония"},
+ err:{ru:"Не удалось получить данные NASA. Проверьте интернет.",en:"Could not get NASA data. Check your internet.",tj:"Маълумоти NASA гирифта нашуд. Интернетро санҷед."},
+ retry:{ru:"Попробовать ещё раз",en:"Try again",tj:"Боз кӯшиш кунед"},
+ ok:{ru:"✅ НАШ СОВЕТ",en:"✅ OUR ADVICE",tj:"✅ МАСЛИҲАТИ МО"},
+ same:{ru:"Ваш нынешний севооборот уже лучший для того, что вам важно.",en:"Your current rotation is already the best for what matters to you.",tj:"Киштгардони ҳозираи шумо аллакай беҳтарин аст."},
+ f_water:{ru:"Воды для полива: <b>~{v} мм в год</b> — {d}",en:"Irrigation water: <b>~{v} mm a year</b> — {d}",tj:"Оби обёрӣ: <b>~{v} мм дар сол</b> — {d}"},
+ less:{ru:"на {v} мм меньше, чем сейчас",en:"{v} mm less than now",tj:"{v} мм камтар аз ҳозира"},
+ more:{ru:"на {v} мм больше, чем сейчас",en:"{v} mm more than now",tj:"{v} мм бештар аз ҳозира"},
+ eq:{ru:"как сейчас",en:"same as now",tj:"мисли ҳозира"},
+ f_bare:{ru:"Поле пустует: <b>{v} мес. в году</b> (сейчас {c})",en:"Field stays bare: <b>{v} months a year</b> (now {c})",tj:"Замин холӣ: <b>{v} моҳ дар сол</b> (ҳозира {c})"},
+ f_risk:{ru:"Важно: {v}",en:"Important: {v}",tj:"Муҳим: {v}"},
+ f_src:{ru:"Расчёт по данным NASA за {a}–{b} годы для вашего места.",en:"Based on NASA data for {a}–{b} at your location.",tj:"Аз рӯи маълумоти NASA барои {a}–{b}."},
+ why:{ru:"Почему мы так советуем?",en:"Why do we advise this?",tj:"Чаро чунин маслиҳат медиҳем?"},
+ more_btn:{ru:"🔬 Показать всё подробно",en:"🔬 Show all details",tj:"🔬 Ҳамаашро муфассал"},
+ restart:{ru:"↺ Начать заново",en:"↺ Start again",tj:"↺ Аз нав"},
+ disc:{ru:"Это подсказка, а не приказ. Окончательно решаете вы — посоветуйтесь с агрономом.",en:"This is a hint, not an order. You decide — check with an agronomist.",tj:"Ин маслиҳат аст. Қарорро шумо қабул мекунед — бо агроном машварат кунед."},
+ geo_err:{ru:"Не удалось определить место. Выберите район из списка.",en:"Could not get your location. Choose a district.",tj:"Ҷой муайян нашуд. Ноҳияро интихоб кунед."},
+};
+const S=(k,kw={})=>{let v=SUI[k][LANG]??SUI[k].en;for(const[a,b]of Object.entries(kw))v=v.replaceAll("{"+a+"}",b);return v;};
+const PRIO={water:{water:5,income:2,soil:2,forage:1,risk:2},income:{water:2,income:5,soil:2,forage:1,risk:2},soil:{water:2,income:2,soil:5,forage:2,risk:2},forage:{water:2,income:2,soil:2,forage:5,risk:2}};
+const sv={step:1};
+const PNAME={en:{"Вахш / Бохтар (Хатлон)":"Vakhsh / Bokhtar (Khatlon)","Кулоб (Хатлон)":"Kulob (Khatlon)","Гиссар (РРП)":"Hisor (Districts of Republican Subordination)","Худжанд (Согд)":"Khujand (Sughd)","Истаравшан (Согд)":"Istaravshan (Sughd)","Пенджикент (Согд)":"Panjakent (Sughd)"},
+ tj:{"Вахш / Бохтар (Хатлон)":"Вахш / Бохтар (Хатлон)","Кулоб (Хатлон)":"Кӯлоб (Хатлон)","Гиссар (РРП)":"Ҳисор (НТМ)","Худжанд (Согд)":"Хуҷанд (Суғд)","Истаравшан (Согд)":"Истаравшан (Суғд)","Пенджикент (Согд)":"Панҷакент (Суғд)"}};
+
+// ======================================================================= agronomy
+const CROPS={
+ cotton:{ru:"Хлопок",en:"Cotton",tj:"Пахта",family:"malvaceae",kc:{4:.35,5:.5,6:.9,7:1.15,8:1.15,9:.85,10:.6},n_fix:0,organic:0,cover:1,forage:0,income:5,heat:{7:1,8:1},frost:{4:1,10:.5},color:"#F4F1DE"},
+ wheat:{ru:"Озимая пшеница",en:"Winter wheat",tj:"Гандуми тирамоҳӣ",family:"poaceae",kc:{10:.4,11:.5,12:.4,1:.4,2:.5,3:.8,4:1.1,5:1.1,6:.5},n_fix:0,organic:1,cover:2,forage:1,income:3,heat:{5:1},frost:{},color:"#E9C46A"},
+ mung:{ru:"Маш (второй урожай)",en:"Mung bean (second crop)",tj:"Мош (ҳосили дуюм)",family:"fabaceae",kc:{7:.6,8:1,9:.8},n_fix:3,organic:1,cover:2,forage:1,income:3,heat:{8:.5},frost:{9:1},gdd:1100,color:"#2A9D8F"},
+ vetch:{ru:"Покровная вика (зима)",en:"Winter vetch cover crop",tj:"Викаи зимистонӣ",family:"fabaceae",kc:{10:.4,11:.5,12:.4,1:.4,2:.5,3:.8},n_fix:3,organic:3,cover:3,forage:2,income:1,heat:{},frost:{},color:"#8AB17D"},
+ alfalfa:{ru:"Люцерна",en:"Alfalfa",tj:"Юнучқа",family:"fabaceae",kc:{1:.3,2:.4,3:.6,4:.9,5:1,6:1,7:1,8:1,9:.95,10:.8,11:.4,12:.3},n_fix:3,organic:3,cover:3,forage:3,income:3,heat:{7:.3},frost:{},color:"#52B788"},
+ maize:{ru:"Кукуруза",en:"Maize",tj:"Ҷуворимакка",family:"poaceae",kc:{4:.4,5:.7,6:1.1,7:1.2,8:1,9:.6},n_fix:0,organic:2,cover:1,forage:3,income:3,heat:{7:1},frost:{4:1},color:"#F4A261"},
+ sorghum:{ru:"Сорго на корм (второй урожай)",en:"Forage sorghum (second crop)",tj:"Хӯшадор (ҳосили дуюм)",family:"poaceae",kc:{7:.5,8:.9,9:1,10:.6},n_fix:0,organic:2,cover:2,forage:3,income:2,heat:{},frost:{10:.5},color:"#BC6C25"},
+ chickpea:{ru:"Нут (весенний)",en:"Chickpea (spring)",tj:"Нахӯд",family:"fabaceae",kc:{3:.5,4:.9,5:1,6:.5},n_fix:2,organic:1,cover:1,forage:1,income:4,heat:{5:.7},frost:{3:.5},color:"#DDB892"},
+};
+Object.assign(CROPS,{
+ barley:{ru:"Ячмень (озимый)",en:"Winter barley",tj:"Ҷав (тирамоҳӣ)",family:"poaceae",kc:{10:.4,11:.5,12:.4,1:.4,2:.5,3:.9,4:1.1,5:.6},n_fix:0,organic:1,cover:2,forage:2,income:2,heat:{5:.5},frost:{},color:"#F2D49B"},
+ rice:{ru:"Рис",en:"Rice",tj:"Шолӣ",family:"poaceae",kc:{5:1.05,6:1.2,7:1.2,8:1.2,9:.9},n_fix:0,organic:1,cover:1,forage:1,income:4,heat:{8:.5},frost:{5:.5},color:"#CDE7B0"},
+ potato:{ru:"Картофель",en:"Potato",tj:"Картошка",family:"solanaceae",kc:{3:.5,4:.8,5:1.1,6:1.1,7:.8},n_fix:0,organic:1,cover:1,forage:0,income:4,heat:{6:.8},frost:{3:1},color:"#C9A66B"},
+ onion:{ru:"Лук",en:"Onion",tj:"Пиёз",family:"amaryllidaceae",kc:{3:.7,4:.9,5:1.05,6:1.05,7:.85},n_fix:0,organic:0,cover:1,forage:0,income:4,heat:{6:.5},frost:{3:.5},color:"#E5C1D0"},
+ tomato:{ru:"Помидоры",en:"Tomato",tj:"Помидор",family:"solanaceae",kc:{4:.6,5:.9,6:1.15,7:1.15,8:.8},n_fix:0,organic:0,cover:1,forage:0,income:5,heat:{7:1},frost:{4:1},color:"#F4A6A6"},
+ melon:{ru:"Бахчевые (дыня, арбуз)",en:"Melons",tj:"Полизӣ (харбуза, тарбуз)",family:"cucurbitaceae",kc:{5:.5,6:.85,7:1,8:.75},n_fix:0,organic:0,cover:1,forage:0,income:4,heat:{7:.5},frost:{5:.5},color:"#F7D488"},
+ sunflower:{ru:"Подсолнечник",en:"Sunflower",tj:"Офтобпараст",family:"asteraceae",kc:{4:.35,5:.7,6:1.05,7:1.05,8:.6},n_fix:0,organic:1,cover:1,forage:1,income:3,heat:{7:.5},frost:{4:.5},color:"#FFD166"},
+ bean:{ru:"Фасоль",en:"Common bean",tj:"Лӯбиё",family:"fabaceae",kc:{5:.5,6:1,7:1.05,8:.9},n_fix:2,organic:1,cover:1,forage:1,income:4,heat:{7:.7},frost:{5:.5},color:"#9BC5A8"},
+});
+const OTHER_KC={spring:{4:.4,5:.7,6:1,7:1.05,8:.9,9:.6},winter:{10:.4,11:.5,12:.4,1:.4,2:.5,3:.8,4:1.05,5:1,6:.5},summer:{7:.5,8:.9,9:1,10:.6}};
+const MAIN_CROPS=["cotton","wheat","barley","maize","rice","potato","onion","tomato","melon","sunflower","bean","chickpea","alfalfa"];
+const SECOND_CROPS=["mung","sorghum","bean","vetch"];
+const cname=k=>CROPS[k][LANG]??CROPS[k].en;
+function Y(spans){const o={};for(const[c,[a,b]]of Object.entries(spans))for(let m=a;m<=b;m++)o[m]=c;return o;}
+const CURRENT={
+ cotton_wheat:{title:{ru:"Хлопок → пшеница (текущий)",en:"Cotton → wheat (current)",tj:"Пахта → гандум (ҷорӣ)"},idea:{ru:"Распространённая схема в долинах Таджикистана. Летом после пшеницы поле стоит пустым.",en:"Common pattern in Tajik valleys. After the wheat harvest the field stays bare all summer.",tj:"Нақшаи маъмул. Пас аз гандум замин тобистон холӣ мемонад."},years:[Y({cotton:[4,10],wheat:[11,12]}),Y({wheat:[1,6]})]},
+ cotton_mono:{title:{ru:"Хлопок каждый год (текущий)",en:"Continuous cotton (current)",tj:"Ҳар сол пахта (ҷорӣ)"},idea:{ru:"Монокультура: почва истощается, вредители накапливаются, зимой поле голое.",en:"Monoculture: soil depletion, pest build-up, bare field in winter.",tj:"Монокултура: хок камбағал мешавад."},years:[Y({cotton:[4,10]})]},
+ wheat_maize:{title:{ru:"Пшеница → кукуруза (текущий)",en:"Wheat → maize (current)",tj:"Гандум → ҷуворимакка (ҷорӣ)"},idea:{ru:"Две злаковые культуры подряд: мало азота в почве, общие вредители.",en:"Two cereals in a row: low nitrogen input, shared pests.",tj:"Ду ғалладона пай дар пай: нитроген кам."},years:[Y({wheat:[1,6]}),Y({maize:[4,9],wheat:[10,12]})]},
+};
+const PREV={
+ none:{ru:"Не знаю / не указано",en:"Unknown / not set",tj:"Намедонам",fam:null},
+ cotton:{ru:"Хлопок",en:"Cotton",tj:"Пахта",fam:"malvaceae"},
+ wheat:{ru:"Пшеница / ячмень",en:"Wheat / barley",tj:"Гандум / ҷав",fam:"poaceae"},
+ maize:{ru:"Кукуруза / сорго",en:"Maize / sorghum",tj:"Ҷуворимакка",fam:"poaceae"},
+ rice:{ru:"Рис",en:"Rice",tj:"Шолӣ",fam:"poaceae"},
+ alfalfa:{ru:"Люцерна",en:"Alfalfa",tj:"Юнучқа",fam:"fabaceae"},
+ legume:{ru:"Бобовые (маш, нут, фасоль)",en:"Legumes (mung, chickpea, beans)",tj:"Лӯбиёгиҳо (мош, нахӯд)",fam:"fabaceae"},
+ potato:{ru:"Картофель / томаты",en:"Potato / tomato",tj:"Картошка / помидор",fam:"solanaceae"},
+ vegetables:{ru:"Овощи (лук, морковь, капуста)",en:"Vegetables (onion, carrot, cabbage)",tj:"Сабзавот",fam:"veg"},
+ melon:{ru:"Бахчевые (дыня, арбуз)",en:"Melons",tj:"Полизӣ (харбуза, тарбуз)",fam:"cucurbitaceae"},
+ fallow:{ru:"Поле отдыхало (пар)",en:"Fallow (rested)",tj:"Замин истироҳат кард",fam:null},
+ other:{ru:"Другое — вписать",en:"Other — type it",tj:"Дигар — нависед",fam:null},
+};
+const FIRST={cotton_wheat:"cotton",cotton_mono:"cotton",wheat_maize:"wheat",catch_crop:"cotton",alfalfa:"alfalfa",water_saver:"wheat"};
+CURRENT.custom={title:{ru:"✏️ Свой вариант",en:"✏️ My own rotation",tj:"✏️ Варианти худ"},idea:{ru:"",en:"",tj:""},years:[{}]};
+function wraps(kc){const ms=Object.keys(kc).map(Number);return ms.some(m=>m>=9)&&ms.some(m=>m<=6);}
+function buildCustom(){
+  const name=$("oName").value.trim()||({ru:"Моя культура",en:"My crop",tj:"Зироати ман"})[LANG];
+  CROPS.other={ru:name,en:name,tj:name,family:"other",kc:OTHER_KC[$("oSeason").value]||OTHER_KC.spring,n_fix:0,organic:1,cover:1,forage:1,income:3,heat:{},frost:{},color:"#D9D9F3"};
+  const ys=[1,2,3].map(y=>({m:$("c"+y+"m").value,s:$("c"+y+"s").value}));
+  let n=3;while(n>1&&!ys[n-1].m&&!ys[n-1].s)n--;
+  const years=Array.from({length:n},()=>({}));
+  const put=(c,yi,second)=>{const kc=CROPS[c].kc,w=wraps(kc);
+    for(const m of Object.keys(kc).map(Number)){let y=yi,wrapped=false;
+      if(w&&!second&&m>=9){y=(yi-1+n)%n;wrapped=true;} if(w&&second&&m<=6){y=(yi+1)%n;wrapped=true;}
+      if(wrapped||second){if(!years[y][m])years[y][m]=c;}else years[y][m]=c;}};
+  ys.slice(0,n).forEach((v,i)=>{if(v.m)put(v.m,i,false);});
+  ys.slice(0,n).forEach((v,i)=>{if(v.s)put(v.s,i,true);});
+  CURRENT.custom.years=years;
+  const parts=ys.slice(0,n).map(v=>[v.m,v.s].filter(Boolean).map(cname).join(" + ")).filter(Boolean);
+  CURRENT.custom.title={ru:"Свой: "+(parts.join(" → ")||"—"),en:"Mine: "+(parts.join(" → ")||"—"),tj:"Худ: "+(parts.join(" → ")||"—")};
+  CURRENT.custom.idea={ru:"Ваш собственный севооборот — сравниваем его с тремя альтернативами.",en:"Your own rotation — compared with three alternatives.",tj:"Киштгардони худи шумо — бо се алтернатива муқоиса мекунем."};
+  FIRST.custom=ys.find(v=>v.m)?.m||ys.find(v=>v.s)?.s;}
+function drawCustom(){const box=$("customBox");if(!box)return;
+  const prev=state.cvals||{};
+  const opt=(list,none)=>`<option value="">${none}</option>`+list.map(k=>`<option value="${k}">${cname(k)}</option>`).join("")+`<option value="other">${S("c_other")}</option>`;
+  box.innerHTML=[1,2,3].map(y=>`<div class="crow"><b>${T("year")} ${y}</b><select id="c${y}m">${opt(MAIN_CROPS,S("c_none_main"))}</select><select id="c${y}s">${opt(SECOND_CROPS,S("c_none_second"))}</select></div>`).join("")+
+    `<div class="crowhint">${S("c_hint")}</div><div id="otherBox" class="crow" style="display:none"><input id="oName" placeholder="${S("c_other_ph")}" value="${(state.oName||"").replace(/"/g,"&quot;")}"><select id="oSeason"><option value="spring">${S("c_s_spring")}</option><option value="winter">${S("c_s_winter")}</option><option value="summer">${S("c_s_summer")}</option></select></div>`;
+  const def={c1m:"cotton",c2m:"wheat"};
+  ["c1m","c1s","c2m","c2s","c3m","c3s","oSeason"].forEach(id=>{const v=prev[id]||(state.customInit?"":def[id])||"";if(v)$(id).value=v;});
+  state.customInit=true;
+  const save=()=>{state.cvals={};["c1m","c1s","c2m","c2s","c3m","c3s","oSeason"].forEach(id=>state.cvals[id]=$(id).value);};save();
+  const upd=()=>{save();state.oName=$("oName").value;const anyOther=["c1m","c1s","c2m","c2s","c3m","c3s"].some(id=>$(id).value==="other");$("otherBox").style.display=anyOther?"flex":"none";
+    if(document.querySelector("input[name=cur]:checked")?.value==="custom"&&state.cl)render();};
+  box.querySelectorAll("select").forEach(e=>e.onchange=upd);$("oName").oninput=()=>{clearTimeout(window._ot);window._ot=setTimeout(upd,500);};
+  $("otherBox").style.display=["c1m","c1s","c2m","c2s","c3m","c3s"].some(id=>$(id).value==="other")?"flex":"none";}
+function prevInfo(){const k=$("prev").value||"none",o=$("prevOther").value.trim();
+  return {key:k,label:k==="other"?(o||PREV.other[LANG]):(PREV[k][LANG]??PREV[k].en),fam:PREV[k].fam,text:o};}
+function prevAdjust(rotKey,pv){const first=FIRST[rotKey];if(!first||pv.key==="none")return {d:0,ben:[],risk:[]};
+  const ff=CROPS[first].family,out={d:0,ben:[],risk:[]};
+  if(pv.fam&&pv.fam===ff){out.d-=8;out.risk.push(X("p_same",{prev:pv.label,crop:cname(first)}));}
+  if(pv.fam==="fabaceae"&&ff!=="fabaceae"){out.d+=5;out.ben.push(X("p_n",{prev:pv.label}));}
+  if(pv.key==="fallow"){out.d+=2;out.ben.push(X("p_fallow"));}
+  if(pv.key==="rice"&&first!=="alfalfa")out.risk.push(X("p_rice"));
+  if(pv.key==="potato"&&first==="cotton")out.risk.push(X("p_potato"));
+  if(pv.key==="other"&&pv.text)out.risk.push(X("p_other",{prev:pv.text}));
+  return out;}
+const ALTS=[
+ {key:"catch_crop",title:{ru:"Пшеница + маш летом + вика зимой",en:"Wheat + summer mung bean + winter vetch",tj:"Гандум + мош + вика"},idea:{ru:"Поле не простаивает: после пшеницы — маш (доход и азот), зимой — покровная вика перед хлопком.",en:"No bare months: mung bean after wheat (income + nitrogen), winter vetch cover before cotton.",tj:"Замин холӣ намемонад: пас аз гандум мош, зимистон вика."},years:[Y({vetch:[1,3],cotton:[4,10],wheat:[11,12]}),Y({wheat:[1,6],mung:[7,9],vetch:[10,12]})]},
+ {key:"alfalfa",title:{ru:"Люцерна 3 года → хлопок → пшеница",en:"Alfalfa 3 yrs → cotton → wheat",tj:"Юнучқа 3 сол → пахта → гандум"},idea:{ru:"Классический для Средней Азии способ восстановить почву: азот, органика, корм для скота.",en:"Classic Central Asian soil-restoring rotation: nitrogen, organic matter, livestock feed.",tj:"Усули классикии барқарор кардани хок."},years:[Y({alfalfa:[1,12]}),Y({alfalfa:[1,12]}),Y({alfalfa:[1,12]}),Y({cotton:[4,10],wheat:[11,12]}),Y({wheat:[1,6]})]},
+ {key:"water_saver",title:{ru:"Пшеница → сорго на корм → нут",en:"Wheat → forage sorghum → chickpea",tj:"Гандум → хӯшадор → нахӯд"},idea:{ru:"Без хлопка — для лет с нехваткой воды: засухоустойчивое сорго и нут вместо влаголюбивых культур.",en:"Cotton-free option for water-short years: drought-tolerant sorghum and chickpea.",tj:"Бе пахта — барои солҳои камобӣ."},years:[Y({wheat:[1,6],sorghum:[7,10]}),Y({chickpea:[3,6],wheat:[10,12]})]},
+];
+const WATER={low:500,medium:900,high:1400};
+const PRESETS={"Вахш / Бохтар (Хатлон)":[37.83,68.78],"Кулоб (Хатлон)":[37.91,69.78],"Гиссар (РРП)":[38.53,68.55],"Худжанд (Согд)":[40.28,69.62],"Истаравшан (Согд)":[39.91,69.0],"Пенджикент (Согд)":[39.5,67.62]};
+
+// ======================================================================= NASA POWER
+const PARAMS=["T2M","T2M_MAX","T2M_MIN","PRECTOTCORR","GWETROOT","ALLSKY_SFC_SW_DWN"];
+const doyOf=(y,m,d)=>Math.round((Date.UTC(y,m-1,d)-Date.UTC(y,0,1))/864e5)+1;
+async function fetchPower(lat,lon){
+  const ck=`fs_power_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+  try{const c=localStorage.getItem(ck); if(c) return JSON.parse(c);}catch(e){}
+  const url=`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=${PARAMS.join(",")}&community=AG&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&start=20010101&end=20241231&format=JSON`;
+  const r=await fetch(url); if(!r.ok) throw new Error("HTTP "+r.status);
+  const p=(await r.json()).properties.parameter;
+  const rows=Object.keys(p.T2M).sort().map(k=>{const y=+k.slice(0,4),m=+k.slice(4,6),d=+k.slice(6,8);const o={y,m,d,doy:doyOf(y,m,d)};
+    for(const P of PARAMS){const v=p[P][k];o[P]=(v==null||v<=-998)?NaN:v;}return o;});
+  try{localStorage.setItem(ck,JSON.stringify(rows));}catch(e){}
+  return rows;
+}
+function demoDaily(){ // synthetic valley climate, ONLY for offline testing
+  let s=177; const rnd=()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  const norm=()=>Math.sqrt(-2*Math.log(rnd()+1e-12))*Math.cos(2*Math.PI*rnd());
+  const rows=[];
+  for(let y=2001;y<=2024;y++)for(let m=1;m<=12;m++){const dim=new Date(Date.UTC(y,m,0)).getUTCDate();for(let d=1;d<=dim;d++){
+    const doy=doyOf(y,m,d),yi=y-2001,season=-Math.cos(2*Math.PI*(doy-15)/365);
+    const t=16+15*season+0.04*yi+2.5*norm(),amp=7+(season+1);
+    const wet=Math.max(0,0.6*Math.cos(2*Math.PI*(doy-70)/365))*(1-0.006*yi);
+    const rain=rnd()<wet*0.35?-9.6*Math.log(rnd()+1e-9):0;
+    rows.push({y,m,d,doy,T2M:t,T2M_MAX:t+amp,T2M_MIN:t-amp,PRECTOTCORR:rain,
+      GWETROOT:Math.min(1,Math.max(.05,.45+.25*Math.cos(2*Math.PI*(doy-60)/365)-.003*yi+.03*norm())),ALLSKY_SFC_SW_DWN:15+10*season+2*norm()});}}
+  return rows;
+}
+function addEto(rows,lat){ // Hargreaves–Samani, FAO-56 eq. 52
+  const phi=lat*Math.PI/180;
+  for(const r of rows){const j=r.doy,dr=1+.033*Math.cos(2*Math.PI*j/365),dec=.409*Math.sin(2*Math.PI*j/365-1.39);
+    const ws=Math.acos(Math.max(-1,Math.min(1,-Math.tan(phi)*Math.tan(dec))));
+    const ra=(24*60/Math.PI)*.082*dr*(ws*Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.sin(ws));
+    const tr=Math.max(0,r.T2M_MAX-r.T2M_MIN); r.ETO=Math.max(0,.0023*.408*ra*(r.T2M+17.8)*Math.sqrt(tr));}
+  return rows;
+}
+const mean=a=>{const b=a.filter(Number.isFinite);return b.length?b.reduce((x,y)=>x+y,0)/b.length:NaN;};
+const sum=a=>a.filter(Number.isFinite).reduce((x,y)=>x+y,0);
+const median=a=>{const b=a.filter(Number.isFinite).sort((x,y)=>x-y);if(!b.length)return NaN;const h=b.length/2;return b.length%2?b[h|0]:(b[h-1]+b[h])/2;};
+const pct=(a,p)=>{const b=a.filter(Number.isFinite).sort((x,y)=>x-y);if(!b.length)return NaN;const i=(b.length-1)*p/100,lo=Math.floor(i);return b[lo]+(b[Math.ceil(i)]-b[lo])*(i-lo);};
+function slopeDecade(xs,ys){const p=xs.map((x,i)=>[x,ys[i]]).filter(v=>Number.isFinite(v[1]));if(p.length<5)return NaN;
+  const mx=mean(p.map(v=>v[0])),my=mean(p.map(v=>v[1]));let n=0,d=0;for(const[x,y]of p){n+=(x-mx)*(y-my);d+=(x-mx)**2;}return n/d*10;}
+const doyToDate=d=>{if(!Number.isFinite(d))return "—";const dt=new Date(Date.UTC(2001,0,1)+(Math.round(d)-1)*864e5);return String(dt.getUTCDate()).padStart(2,"0")+"."+String(dt.getUTCMonth()+1).padStart(2,"0");};
+
+function summarize(rows){
+  const years=[...new Set(rows.map(r=>r.y))].sort(),ny=years.length;
+  const mon={};for(let m=1;m<=12;m++){const g=rows.filter(r=>r.m===m);
+    mon[m]={t_mean:mean(g.map(r=>r.T2M)),t_max:mean(g.map(r=>r.T2M_MAX)),t_min:mean(g.map(r=>r.T2M_MIN)),precip:sum(g.map(r=>r.PRECTOTCORR))/ny,
+      eto:sum(g.map(r=>r.ETO))/ny,soil_wet:mean(g.map(r=>r.GWETROOT)),heat_days:g.filter(r=>r.T2M_MAX>35).length/ny,frost_days:g.filter(r=>r.T2M_MIN<0).length/ny};}
+  const ls=[],fa=[],gdd=[],yearly={summer_tmax:[],heat_days:[],precip:[],spring_precip:[]};
+  for(const y of years){const g=rows.filter(r=>r.y===y);
+    const sp=g.filter(r=>r.m<7&&r.T2M_MIN<0);if(sp.length)ls.push(sp[sp.length-1].doy);
+    const au=g.filter(r=>r.m>=7&&r.T2M_MIN<0);const ff=au.length?au[0].doy:365;fa.push(ff);
+    gdd.push(sum(g.filter(r=>r.doy>=doyOf(y,7,1)&&r.doy<ff).map(r=>Math.max(0,r.T2M-10))));
+    yearly.summer_tmax.push(mean(g.filter(r=>r.m>=6&&r.m<=8).map(r=>r.T2M_MAX)));
+    yearly.heat_days.push(g.filter(r=>r.T2M_MAX>35).length);
+    yearly.precip.push(sum(g.map(r=>r.PRECTOTCORR)));
+    yearly.spring_precip.push(sum(g.filter(r=>r.m>=3&&r.m<=5).map(r=>r.PRECTOTCORR)));}
+  return {mon,years,yearly,y1:years[0],y2:years[ny-1],
+    last_spring_frost:ls.length?doyToDate(median(ls)):"—",first_autumn_frost:doyToDate(median(fa)),
+    gdd_med:median(gdd),gdd_p20:pct(gdd,20),
+    trends:{summer:slopeDecade(years,yearly.summer_tmax),heat:slopeDecade(years,yearly.heat_days),precip:slopeDecade(years,yearly.precip),spring:slopeDecade(years,yearly.spring_precip)},
+    annual_precip:mean(yearly.precip),annual_eto:sum(Object.values(mon).map(v=>v.eto))};
+}
+
+// ======================================================================= analysis
+function analyze(rot,cl){
+  const n=rot.years.length,irr=Array(12).fill(0);let bare=0,nf=0,org=0,cov=0,fo=0,inc=0,heat=0,frost=0;const seen=new Set(),fam=new Set();
+  rot.years.forEach((yr,yi)=>{for(let m=1;m<=12;m++){const c=yr[m];if(!c){bare++;continue;}const C=CROPS[c],M=cl.mon[m];
+    irr[m-1]+=Math.max(0,M.eto*C.kc[m]-0.8*M.precip);cov+=C.cover/3;heat+=(C.heat[m]||0)*M.heat_days;frost+=(C.frost[m]||0)*M.frost_days;
+    const k=yi+c;if(!seen.has(k)){seen.add(k);nf+=C.n_fix;org+=C.organic;fo+=C.forage;inc+=C.income;fam.add(C.family);}}});
+  const im=irr.map(v=>v/n),warn=[];
+  for(const yr of rot.years)for(const c of new Set(Object.values(yr)))if(CROPS[c].gdd&&cl.gdd_p20<CROPS[c].gdd&&!warn.includes(c))warn.push(c);
+  return {irrigation:sum(im),byMonth:im,peak:im.indexOf(Math.max(...im))+1,bare:bare/n,n_fix:nf/n,
+    soil:(nf+org)/n+3*cov/(12*n)+.5*fam.size,forage:fo/n,income:inc/n,heat:heat/n,frost:frost/n,families:fam.size,warn};
+}
+function norm(v,hb=true){const lo=Math.min(...v),hi=Math.max(...v);if(hi-lo<1e-9)return v.map(()=>70);return v.map(x=>100*(hb?(x-lo)/(hi-lo):1-(x-lo)/(hi-lo)));}
+function score(res,w,waterMM){
+  const c={water:norm(res.map(r=>r.irrigation),false),income:norm(res.map(r=>r.income)),soil:norm(res.map(r=>r.soil-r.bare)),forage:norm(res.map(r=>r.forage)),risk:norm(res.map(r=>r.heat+r.frost),false)};
+  const ws=Object.values(w).reduce((a,b)=>a+b,0)||1;
+  return res.map((r,i)=>{const short=Math.max(0,r.irrigation-waterMM);let t=Object.keys(c).reduce((a,k)=>a+c[k][i]*w[k],0)/ws;
+    t=t-short/20-15*r.warn.length;return {total:Math.round(Math.max(0,Math.min(100,t))),short};});
+}
+
+// ======================================================================= explanations
+const TX={
+ ev_water:{ru:"Полив: ~{irr} мм/год ({diff}), пик в {peak}.",en:"Irrigation: ~{irr} mm/yr ({diff}), peak in {peak}.",tj:"Обёрӣ: ~{irr} мм/сол ({diff}), авҷ дар {peak}."},
+ same:{ru:"как у текущего",en:"same as current",tj:"мисли ҷорӣ"},more:{ru:"на {v} мм больше текущего",en:"{v} mm more than current",tj:"{v} мм зиёдтар аз ҷорӣ"},less:{ru:"на {v} мм меньше текущего",en:"{v} mm less than current",tj:"{v} мм камтар аз ҷорӣ"},
+ ev_bare:{ru:"Поле без растений: {b} мес. в году (у текущего {c}).",en:"Bare field: {b} months/yr (current: {c}).",tj:"Замини холӣ: {b} моҳ дар сол (ҷорӣ: {c})."},
+ ev_heat:{ru:"Дней с жарой >35 °C в чувствительные фазы культур: ~{h} в год.",en:"Days >35 °C during sensitive crop stages: ~{h} per year.",tj:"Рӯзҳои гармии >35 °C дар марҳилаҳои ҳассос: ~{h} дар сол."},
+ b_nfix:{ru:"Бобовые фиксируют азот — меньше покупных удобрений.",en:"Legumes fix nitrogen — less purchased fertilizer.",tj:"Лӯбиёгиҳо нитрогенро нигоҳ медоранд — нуриҳои камтар."},
+ b_cover:{ru:"Почва почти всегда под растениями — меньше эрозии и потерь влаги.",en:"Soil is covered most of the year — less erosion and moisture loss.",tj:"Хок қариб ҳамеша пӯшида — эрозия камтар."},
+ b_forage:{ru:"Даёт корм для скота.",en:"Produces livestock feed.",tj:"Хӯроки чорво медиҳад."},
+ b_water:{ru:"Требует меньше поливной воды.",en:"Needs less irrigation water.",tj:"Оби камтар талаб мекунад."},
+ b_div:{ru:"Разные семейства культур прерывают циклы вредителей и болезней.",en:"Different crop families break pest and disease cycles.",tj:"Оилаҳои гуногуни зироат давраи зараррасонҳоро мешикананд."},
+ b_inc:{ru:"Дополнительный урожай — дополнительный доход.",en:"An extra harvest means extra income.",tj:"Ҳосили иловагӣ — даромади иловагӣ."},
+ r_short:{ru:"Не хватает воды: нужно на ~{v} мм/год больше, чем у вас есть.",en:"Water shortfall: needs ~{v} mm/yr more than you have.",tj:"Об намерасад: ~{v} мм/сол зиёдтар лозим."},
+ r_gdd:{ru:"{crop}: после уборки пшеницы тепла может не хватить (нужно ~{need} °C·сут, в прохладный год только {p20}). Нужен ранний сорт.",en:"{crop}: may lack heat after the wheat harvest (needs ~{need} GDD, in a cool year only {p20}). Use an early variety.",tj:"{crop}: пас аз гандум гармӣ шояд нарасад. Навъи барвақтӣ лозим."},
+ r_gdd_ok:{ru:"{crop}: тепла после уборки пшеницы обычно хватает (есть ~{med} °C·сут, нужно ~{need}), но сеять нужно сразу, в начале июля.",en:"{crop}: usually enough heat after wheat (~{med} GDD available, ~{need} needed), but sow right away in early July.",tj:"{crop}: гармӣ одатан мерасад, аммо дар аввали июл кишт кунед."},
+ r_heat:{ru:"Высокий риск жары в период цветения.",en:"High heat risk during flowering.",tj:"Хатари гармӣ дар вақти гулкунӣ баланд аст."},
+ r_alf:{ru:"Хлопок уходит с поля на 3 года — проверьте договор/план по хлопку и сбыт сена.",en:"No cotton for 3 years — check cotton contracts/plans and the hay market.",tj:"3 сол пахта нест — шартнома ва бозори хасбедаро санҷед."},
+ r_mkt:{ru:"Проверьте спрос и цены на: {crops}.",en:"Check local demand and prices for: {crops}.",tj:"Талабот ва нархро санҷед: {crops}."},
+ p_same:{ru:"{crop} после «{prev}» — то же семейство растений: выше риск болезней и вредителей.",en:"{crop} after '{prev}' — same plant family: higher disease and pest risk.",tj:"{crop} пас аз «{prev}» — ҳамон оила: хатари бемориҳо баланд."},
+ p_n:{ru:"После «{prev}» в почве остался азот — можно уменьшить азотные удобрения (уточните у агронома).",en:"After '{prev}' nitrogen remains in the soil — nitrogen fertilizer can be reduced (check with an agronomist).",tj:"Пас аз «{prev}» дар хок нитроген мондааст — нуриро кам кардан мумкин."},
+ p_fallow:{ru:"После пара в почве больше влаги и меньше сорняков-вредителей.",en:"After fallow the soil holds more moisture and fewer pests.",tj:"Пас аз истироҳат дар хок намӣ зиёдтар аст."},
+ p_rice:{ru:"После риса почва уплотнена и переувлажнена — нужна хорошая обработка и дренаж.",en:"After rice the soil is compacted and waterlogged — good tillage and drainage needed.",tj:"Пас аз шолӣ хок зич ва тар аст — коркард ва зеҳкашӣ лозим."},
+ p_potato:{ru:"После картофеля/томатов проверьте поле на нематод и вилт перед хлопком.",en:"After potato/tomato check the field for nematodes and wilt before cotton.",tj:"Пас аз картошка майдонро барои нематода санҷед."},
+ p_other:{ru:"Предшественник «{prev}» не в нашей базе — уточните совместимость у агронома.",en:"Previous crop '{prev}' is not in our database — check compatibility with an agronomist.",tj:"«{prev}» дар базаи мо нест — аз агроном пурсед."},
+ g_soil:{ru:"Нет данных о почве конкретного поля (pH, засоление, органика) — нужен анализ почвы.",en:"No field-level soil data (pH, salinity, organic matter) — a soil test is needed.",tj:"Маълумоти хоки майдон нест — таҳлили хок лозим."},
+ g_sat:{ru:"Данные NASA — среднее по ячейке ~50 км; на вашем поле может быть иначе.",en:"NASA data average a ~50 km cell; your field may differ.",tj:"Маълумоти NASA миёнаи ~50 км аст."},
+ g_econ:{ru:"Доход — относительная оценка, а не прогноз в сомони.",en:"Income is a relative index, not a forecast in money.",tj:"Даромад — баҳои нисбӣ, на пешгӯӣ бо сомонӣ."},
+};
+const X=(k,kw={})=>{let v=TX[k][LANG]??TX[k].en;for(const[a,b]of Object.entries(kw))v=v.replaceAll("{"+a+"}",b);return v;};
+function explain(rot,r,cur,cl,sc){
+  const d=r.irrigation-cur.irrigation,diff=Math.abs(d)<10?X("same"):d>0?X("more",{v:fmt(d)}):X("less",{v:fmt(-d)});
+  const ev=[X("ev_water",{irr:fmt(r.irrigation),diff,peak:MONTHS[LANG][r.peak-1]}),X("ev_bare",{b:fmt(r.bare,1),c:fmt(cur.bare,1)}),X("ev_heat",{h:fmt(r.heat)})];
+  const ben=[],risk=[];
+  if(r.n_fix>cur.n_fix)ben.push(X("b_nfix"));if(r.bare<cur.bare-.5)ben.push(X("b_cover"));if(r.forage>cur.forage)ben.push(X("b_forage"));
+  if(d<-50)ben.push(X("b_water"));if(r.families>cur.families)ben.push(X("b_div"));if(rot.key==="catch_crop")ben.push(X("b_inc"));
+  if(sc.short>0)risk.push(X("r_short",{v:fmt(sc.short)}));
+  const crops=[...new Set(rot.years.flatMap(y=>Object.values(y)))].sort();
+  for(const c of crops){const need=CROPS[c].gdd;if(need)risk.push(cl.gdd_p20<need?X("r_gdd",{crop:cname(c),need,p20:fmt(cl.gdd_p20)}):X("r_gdd_ok",{crop:cname(c),need,med:fmt(cl.gdd_med)}));}
+  if(r.heat>15)risk.push(X("r_heat"));if(rot.key==="alfalfa")risk.push(X("r_alf"));
+  const nc=crops.filter(c=>c!=="cotton"&&c!=="wheat").map(cname);if(nc.length)risk.push(X("r_mkt",{crops:nc.join(", ")}));
+  return {why:rot.idea[LANG]??rot.idea.en,evidence:ev,benefits:ben,risks:risk,gaps:[X("g_soil"),X("g_sat"),X("g_econ")]};
+}
+
+// ======================================================================= UI
+const $=id=>document.getElementById(id);
+const state={rows:null,cl:null,table:null,demo:false,chat:[]};
+let map,marker;
+function buildForm(){
+  $("t_title").textContent=T("title");$("t_disclaimer").textContent=T("disclaimer");$("t_where").textContent=T("where");$("t_maphint").textContent=T("maphint");$("shareBtn").textContent=T("share");$("printBtn").textContent=T("print");$("t_scen").textContent=T("scen");$("t_srain").textContent=T("srain");$("t_stemp").textContent=T("stemp");$("t_gibslbl").textContent=T("gibs_lbl");$("t_ndvi").textContent=T("ndvi_t");$("search").placeholder=T("search_ph");$("locBtn").textContent=T("myloc");if(window.L&&map&&cellRect)setupLayers();
+  $("t_current").textContent=T("current");$("t_prev").textContent=T("prev_q");$("prevOther").placeholder=T("prev_other_ph");
+  const pvk=$("prev").value||"none";$("prev").innerHTML=Object.entries(PREV).map(([k,v])=>`<option value="${k}">${v[LANG]??v.en}</option>`).join("");$("prev").value=pvk;
+  $("prevOther").style.display=pvk==="other"?"block":"none";$("t_water").textContent=T("water");$("t_prio").textContent=T("prio");
+  $("run").textContent=T("run");$("dl").textContent=T("download");$("t_trend").textContent=T("trend");$("t_cal").textContent=T("cal");
+  const cur=document.querySelector("input[name=cur]:checked")?.value||"cotton_wheat";
+  $("currentBox").innerHTML=Object.entries(CURRENT).map(([k,v])=>`<label><input type="radio" name="cur" value="${k}" ${k===cur?"checked":""}> ${k==="custom"?S("c_btn"):v.title[LANG]}</label>`).join("")+`<div id="customBox" class="cbox" style="display:${cur==="custom"?"block":"none"}"></div>`;
+  drawCustom();
+  const wl=document.querySelector("input[name=wl]:checked")?.value||"medium";
+  $("waterBox").innerHTML=["low","medium","high"].map((k,i)=>`<label><input type="radio" name="wl" value="${k}" ${k===wl?"checked":""}> ${T("water_opts")[i]}</label>`).join("");
+  const def={water:5,income:2,soil:2,forage:1,risk:2};
+  $("sliders").innerHTML=Object.keys(def).map(k=>{const v=$("w_"+k)?.value??def[k];return `<div class="slider"><span>${T("w_"+k)}</span><b id="v_${k}">${v}</b><input type="range" min="0" max="5" id="w_${k}" value="${v}"></div>`;}).join("");
+  document.querySelectorAll("#sliders input").forEach(s=>s.oninput=()=>{$("v_"+s.id.slice(2)).textContent=s.value;drawGoals();if(state.cl)render();});
+  document.querySelectorAll("input[name=cur],input[name=wl]").forEach(r=>r.onchange=()=>{$("customBox").style.display=document.querySelector("input[name=cur]:checked").value==="custom"?"block":"none";state.cl&&render();});
+  const pv=$("place").value;
+  $("place").innerHTML=Object.keys(PRESETS).map(p=>`<option>${p}</option>`).join("")+`<option value="custom">${T("custom")}</option>`;
+  if(pv)$("place").value=pv;
+  $("tabs").innerHTML=T("tabs").map((t,i)=>`<button data-i="${i}" class="${i===(state.tab||0)?"on":""}">${t}</button>`).join("");
+  document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(+b.dataset.i));
+  ["t_where","t_current","t_water","t_prio","t_prev","t_scen"].forEach(id=>{const e=$(id);if(e)e.textContent=e.textContent.replace(/^\d+[аa]?\.\s*/,"");});
+  if($("t_fine"))$("t_fine").textContent=S("fine");if($("goalBox"))drawGoals();if($("hlang"))drawLangs();
+}
+const TAB_IDS=["tab_rec","tab_water","tab_climate","tab_cal","tab_data"];
+function showTab(i){state.tab=i;document.querySelectorAll("#tabs button").forEach((b,j)=>b.classList.toggle("on",i===j));
+  TAB_IDS.forEach((id,j)=>$(id).classList.toggle("on",i===j));
+  if(window.Plotly)$(TAB_IDS[i]).querySelectorAll(".js-plotly-plot").forEach(el=>Plotly.Plots.resize(el));}
+function setPoint(lat,lon,fromMap,zoom){$("lat").value=lat.toFixed(4);$("lon").value=lon.toFixed(4);
+  $("mapinfo").textContent=`📍 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  if(!map||!marker)return; marker.setLatLng([lat,lon]);
+  const cy=Math.round(lat/0.5)*0.5,cx=Math.round(lon/0.625)*0.625; cellRect.setBounds([[cy-.25,cx-.3125],[cy+.25,cx+.3125]]);
+  if(!fromMap)map.setView([lat,lon],zoom||10);
+  marker.bindPopup(`<b>${T("field")}</b><br>${lat.toFixed(4)}, ${lon.toFixed(4)}<br><button style="margin-top:6px;background:#2a9d8f;color:#fff;border:0;border-radius:8px;padding:7px 10px;cursor:pointer" onclick="runAnalysis()">${T("here")}</button>`);
+  if(fromMap)marker.openPopup();}
+function status(html,cls=""){$("status").innerHTML=html?`<div class="note ${cls}">${html}</div>`:"";}
+
+let runId=0,autoTimer;
+function autoRun(){clearTimeout(autoTimer);autoTimer=setTimeout(runAnalysis,600);}
+async function runAnalysis(){
+  const my=++runId,lat=+$("lat").value,lon=+$("lon").value,demo=false;$("run").disabled=true;
+  try{
+    status(T("loading"));
+    const rows=demo?demoDaily():await fetchPower(lat,lon);
+    if(my!==runId)return;
+    addEto(rows,lat);state.rows=rows;state.base=summarize(rows);state.cl=state.base;state.demo=demo;state.lat=lat;state.lon=lon;applyScenario(false);
+    status(demo?T("demo_banner"):T("loaded",{n:rows.length,y1:state.cl.y1,y2:state.cl.y2}),demo?"warn":"");
+    loadNdvi(lat,lon,my);
+    render();
+  }catch(e){if(my===runId)status(T("load_err",{e:e.message}),"err");}
+  finally{$("run").disabled=false;}
+}
+function inputs(){const w={};["water","income","soil","forage","risk"].forEach(k=>w[k]=+$("w_"+k).value);
+  return {cur:document.querySelector("input[name=cur]:checked").value,wl:document.querySelector("input[name=wl]:checked").value,w};}
+
+function scenVals(){return {r:+$("s_rain").value,t:+$("s_temp").value};}
+function applyScenario(doRender=true){const {r,t}=scenVals();
+  $("v_srain").textContent=(r>0?"+":"")+r+"%";$("v_stemp").textContent="+"+t+" °C";
+  if(!state.rows)return;
+  if(!r&&!t){state.cl=state.base;$("scenNote").style.display="none";}
+  else{const rows=state.rows.map(x=>({...x,T2M:x.T2M+t,T2M_MAX:x.T2M_MAX+t,T2M_MIN:x.T2M_MIN+t,PRECTOTCORR:x.PRECTOTCORR*(1+r/100)}));
+    addEto(rows,state.lat);state.cl=summarize(rows);
+    $("scenNote").style.display="block";$("scenNote").textContent=T("scen_on",{r:(r>0?"+":"")+r+"%",t});}
+  if(doRender)render();}
+function render(){
+  const cl=state.cl,{cur,wl,w}=inputs();
+  if(cur==="custom")buildCustom();
+  const rots=[{key:cur,...CURRENT[cur]},...ALTS],res=rots.map(r=>analyze(r,cl)),sc=score(res,w,WATER[wl]),pv=prevInfo();
+  state.table=rots.map((r,i)=>{const ex=explain(r,res[i],res[0],cl,sc[i]),pa=prevAdjust(r.key,pv);
+    ex.benefits.push(...pa.ben);ex.risks.unshift(...pa.risk);
+    return {key:r.key,name:r.title[LANG],score:Math.max(0,Math.min(100,sc[i].total+pa.d)),irrigation_mm:Math.round(res[i].irrigation),
+    bare_months:+res[i].bare.toFixed(1),heat_risk_days:+res[i].heat.toFixed(1),water_shortfall_mm:Math.round(sc[i].short),ex,rot:r,res:res[i]};});
+  const order=[...state.table].sort((a,b)=>b.score-a.score),best=order[0];
+  renderAnswer();
+  $("bestLine").innerHTML=`<div class="note"><b>${T("best")}:</b> ${best.name} — ${T("score")} ${best.score}/100</div>`;
+  const curRow=state.table[0],dW=curRow.irrigation_mm-best.irrigation_mm,hotY=sum(Object.values(cl.mon).map(v=>v.heat_days));
+  $("kpis").innerHTML=`<div class="kt"><div class="l">${T("k_rain")}</div><div class="v">${Math.round(cl.annual_precip)} mm</div><div class="s">${T("k_eto",{v:Math.round(cl.annual_eto)})}</div></div>
+   <div class="kt"><div class="l">${T("k_water")}</div><div class="v">${dW>=0?"−":"+"}${Math.abs(dW)}</div><div class="s">${dW>=0?T("k_saved"):T("k_more")} (${curRow.irrigation_mm?Math.round(Math.abs(dW)/curRow.irrigation_mm*100):0}%)</div></div>
+   <div class="kt"><div class="l">${T("k_bare")}</div><div class="v">${best.bare_months}</div><div class="s">${T("k_was",{v:curRow.bare_months})}</div></div>
+   <div class="kt"><div class="l">${T("k_heat")}</div><div class="v">${Math.round(hotY)}</div><div class="s">${T("k_trend",{v:fmt(cl.trends.heat,1,true)})} · NASA POWER ${cl.y1}–${cl.y2}</div></div>`;
+  const li=a=>a.length?`<ul>${a.map(x=>`<li>${x}</li>`).join("")}</ul>`:"";
+  $("cards").innerHTML=order.map(r=>`<div class="card ${r===best?"best":""}">${r===best?`<span class="badge">★ ${T("best")}</span>`:""}
+    <h4>${r.name}</h4><div class="bar"><div style="width:${r.score}%"></div></div><div class="muted">${T("score")}: <b>${r.score}/100</b></div>
+    <div class="kpis"><div class="kpi">${T("irr")}<b>${r.irrigation_mm}</b></div><div class="kpi">${T("bare")}<b>${r.bare_months}</b></div></div>
+    <p><b>${T("why")}.</b> ${r.ex.why}</p><p><b>${T("evidence")}</b></p>${li(r.ex.evidence)}
+    ${r.ex.benefits.length?`<p><b>${T("benefits")}</b></p>${li(r.ex.benefits)}`:""}${r.ex.risks.length?`<p><b>${T("risks")}</b></p>${li(r.ex.risks)}`:""}
+    <details><summary>${T("gaps")}</summary>${li(r.ex.gaps)}</details></div>`).join("");
+  if(window.Plotly){
+  const ML=MONTHS[LANG],lay=(title,extra={})=>({title:{text:title,font:{size:15}},margin:{t:50,l:50,r:50,b:60},legend:{orientation:"h",y:-0.18},...extra});
+  Plotly.react("chWater",state.table.map(r=>({x:ML,y:r.res.byMonth.map(v=>Math.round(v)),name:r.name,mode:"lines+markers"})),lay(T("water_title"),{yaxis:{title:"mm"}}),{responsive:true});
+  const mon=m=>Array.from({length:12},(_,i)=>cl.mon[i+1][m]);
+  Plotly.react("chClimate",[{type:"bar",x:ML,y:mon("precip").map(Math.round),name:T("precip"),marker:{color:"#4C9BE8"}},
+    {type:"bar",x:ML,y:mon("eto").map(Math.round),name:T("eto"),marker:{color:"#F2A541"}},
+    {x:ML,y:mon("t_max").map(v=>+v.toFixed(1)),name:T("tmax"),yaxis:"y2",mode:"lines+markers",line:{color:"#D1495B"}}],
+    lay(T("climate_title"),{barmode:"group",yaxis:{title:"mm"},yaxis2:{title:"°C",overlaying:"y",side:"right"}}),{responsive:true});
+  Plotly.react("chRisk",[{type:"bar",x:ML,y:mon("heat_days").map(v=>+v.toFixed(1)),name:T("heat_days"),marker:{color:"#D1495B"}},
+    {type:"bar",x:ML,y:mon("frost_days").map(v=>+v.toFixed(1)),name:T("frost_days"),marker:{color:"#5DADE2"}}],lay(T("risk_cal")),{responsive:true});
+  Plotly.react("chSoil",[{x:ML,y:mon("soil_wet").map(v=>+v.toFixed(2)),mode:"lines+markers",line:{color:"#6A994E"}}],lay(T("soil_wet"),{yaxis:{range:[0,1]}}),{responsive:true});
+  Plotly.react("chTrend",[{x:cl.years,y:cl.yearly.summer_tmax.map(v=>+v.toFixed(1)),mode:"lines+markers",name:T("tmax")}],lay(T("tmax")+" (Jun–Aug)"),{responsive:true});
+  }
+  const ML=MONTHS[LANG],tr=cl.trends;
+  $("trends").innerHTML=[T("t_summer",{v:fmt(tr.summer,2,true)}),T("t_heat",{v:fmt(tr.heat,1,true)}),T("t_precip",{v:fmt(tr.precip,0,true)}),
+    T("t_spring",{v:fmt(tr.spring,0,true)}),T("frost_dates",{a:cl.last_spring_frost,b:cl.first_autumn_frost,y1:cl.y1,y2:cl.y2})].map(x=>`<li>${x}</li>`).join("");
+  $("calendars").innerHTML=state.table.map(r=>`<p><b>${r.name}</b></p><table class="cal"><tr><th></th>${ML.map(m=>`<th>${m}</th>`).join("")}</tr>
+    ${r.rot.years.map((y,i)=>`<tr><th>${T("year")} ${i+1}</th>${Array.from({length:12},(_,m)=>{const c=y[m+1];return `<td style="background:${c?CROPS[c].color:"#FDE2E4"}">${c?cname(c):""}</td>`;}).join("")}</tr>`).join("")}</table>`).join("");
+  $("dataInfo").innerHTML=`<h4>NASA POWER — Prediction Of Worldwide Energy Resources</h4>
+   <p>Daily, ${cl.y1}–${cl.y2}, point ${state.lat.toFixed(3)}, ${state.lon.toFixed(3)} ${state.demo?"<b>(DEMO — synthetic)</b>":""}</p>
+   <ul><li><code>T2M, T2M_MAX, T2M_MIN</code> — air temperature: heat days, frost dates, heat units for second crops</li>
+   <li><code>PRECTOTCORR</code> — precipitation (NASA GPM / MERRA-2 based)</li><li><code>GWETROOT</code> — root-zone soil wetness (NASA GMAO MERRA-2)</li>
+   <li><code>ALLSKY_SFC_SW_DWN</code> — solar radiation (NASA CERES)</li></ul>
+   <p><b>Method.</b> ETo — Hargreaves–Samani (FAO-56 eq. 52). Crop water need = ETo × Kc (monthly FAO-56); irrigation = need − 0.8 × rain.
+   Trends — linear regression of yearly values. Second crop — growing degree days (base 10 °C) from 1 July to first autumn frost (median and 20th percentile).
+   Score — weighted multi-criteria comparison by the farmer's own priorities, with penalty when water need exceeds what is available.</p>
+   <p><b>Limitations.</b> ~0.5° grid (≈50 km); no field soil test; crop indices are expert estimates to be validated locally. Satellite/model data differ from on-farm measurements — combining both improves accuracy.</p>
+   <p>Source: <a href="https://power.larc.nasa.gov" target="_blank">power.larc.nasa.gov</a> · Team Delta-177, Dushanbe</p>
+   <p><button class="secondary" id="csv">⬇️ CSV</button></p>
+   <h4>${T("gloss")}</h4><dl class="gl">${(GLOSS[LANG]||GLOSS.ru).map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>`;
+  $("csv").onclick=()=>{const h=["date",...PARAMS,"ETO"];download(`nasa_power_${state.lat.toFixed(2)}_${state.lon.toFixed(2)}.csv`,
+    [h.join(","),...state.rows.map(r=>[`${r.y}-${String(r.m).padStart(2,"0")}-${String(r.d).padStart(2,"0")}`,...PARAMS.map(p=>r[p]),r.ETO.toFixed(3)].join(","))].join("\n"));};
+}
+function download(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain;charset=utf-8"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+$("dl").onclick=()=>{if(!state.table)return;const L=[`Delta-177 · Field Shift — ${state.lat.toFixed(3)}, ${state.lon.toFixed(3)}`,`${T("prev_q")} ${prevInfo().label}`,T("disclaimer"),""];
+  for(const r of [...state.table].sort((a,b)=>b.score-a.score))L.push(`## ${r.name} — ${r.score}/100`,r.ex.why,...r.ex.evidence.map(x=>"- "+x),...r.ex.benefits.map(x=>"+ "+x),...r.ex.risks.map(x=>"! "+x),"");
+  download("field_shift_summary.txt",L.join("\n"));};
+
+// ======================================================================= NASA MODIS NDVI (ORNL DAAC)
+const MODIS="https://modis.ornl.gov/rst/api/v1/MOD13Q1";
+async function fetchNdvi(lat,lon){
+  const ck=`fs_ndvi_${lat.toFixed(3)}_${lon.toFixed(3)}_${new Date().toISOString().slice(0,7)}`;
+  try{const c=localStorage.getItem(ck);if(c)return JSON.parse(c);}catch(e){}
+  const H={headers:{Accept:"application/json"}};
+  const r=await fetch(`${MODIS}/dates?latitude=${lat}&longitude=${lon}`,H);if(!r.ok)throw new Error("HTTP "+r.status);
+  const dates=(await r.json()).dates.slice(-46);const out=[];
+  for(let i=0;i<dates.length;i+=10){const ch=dates.slice(i,i+10);
+    const q=await fetch(`${MODIS}/subset?latitude=${lat}&longitude=${lon}&band=250m_16_days_NDVI&startDate=${ch[0].modis_date}&endDate=${ch[ch.length-1].modis_date}&kmAboveBelow=0&kmLeftRight=0`,H);
+    if(!q.ok)throw new Error("HTTP "+q.status);
+    for(const sb of (await q.json()).subset){const v=sb.data[0];if(v>-2000)out.push({date:sb.calendar_date,ndvi:v*0.0001});}}
+  try{localStorage.setItem(ck,JSON.stringify(out));}catch(e){}
+  return out;}
+async function loadNdvi(lat,lon,my){
+  $("ndviStatus").textContent=T("ndvi_load");$("ndviNote").innerHTML="";
+  try{const pts=await fetchNdvi(lat,lon);if(my!==runId)return;if(!pts.length)throw new Error("no data");
+    state.ndvi=pts;renderNdvi();}
+  catch(e){if(my===runId){state.ndvi=null;$("ndviStatus").textContent=T("ndvi_err",{e:e.message});if(window.Plotly)Plotly.purge("chNdvi");}}}
+function renderNdvi(){const pts=state.ndvi;if(!pts)return;
+  $("ndviStatus").textContent=T("ndvi_ok",{n:pts.length,a:pts[0].date,b:pts[pts.length-1].date});
+  if(window.Plotly)Plotly.react("chNdvi",[{x:pts.map(p=>p.date),y:pts.map(p=>+p.ndvi.toFixed(3)),mode:"lines+markers",line:{color:"#2A9D8F"},name:"NDVI"},
+    {x:[pts[0].date,pts[pts.length-1].date],y:[0.2,0.2],mode:"lines",line:{color:"#D1495B",dash:"dash"},name:"0.2"}],
+    {margin:{t:20,l:80,r:20,b:50},yaxis:{title:{text:T("ndvi_axis"),font:{size:12}},range:[-0.05,1]},showlegend:false},{responsive:true});
+  const last=new Date(Date.parse(pts[pts.length-1].date)-365*864e5),by={};
+  for(const p of pts){const d=new Date(p.date);if(d<last)continue;const m=d.getUTCMonth();(by[m]=by[m]||[]).push(p.ndvi);}
+  const bare=Object.entries(by).filter(([m,v])=>mean(v)<0.2).map(([m])=>+m).sort((a,b)=>a-b).map(m=>MONTHS[LANG][m]);
+  $("ndviNote").innerHTML=(bare.length?T("ndvi_bare",{m:bare.join(", ")}):T("ndvi_green"))+"<br><span class='muted'>"+T("ndvi_hint")+"</span>";}
+// ======================================================================= init
+$("lang").onchange=()=>{LANG=$("lang").value;document.documentElement.lang=LANG==="tj"?"tg":LANG;buildForm();if(state.cl)render();renderNdvi();renderAnswer();if(state.cl&&!state.demo&&state.base)status(T("loaded",{n:state.rows.length,y1:state.base.y1,y2:state.base.y2}));};
+buildForm();
+["s_rain","s_temp"].forEach(id=>$(id).oninput=()=>applyScenario());
+$("printBtn").onclick=()=>{if(window.Plotly)document.querySelectorAll(".js-plotly-plot").forEach(el=>{try{Plotly.Plots.resize(el);}catch(e){}});window.print();};
+function shareUrl(){const {cur,wl,w}=inputs(),{r,t}=scenVals();const q=new URLSearchParams({lat:(+$("lat").value).toFixed(4),lon:(+$("lon").value).toFixed(4),cur,wl,prev:$("prev").value,w:Object.values(w).join(","),lang:LANG});
+  if($("prev").value==="other")q.set("po",$("prevOther").value);if(r)q.set("rain",r);if(t)q.set("temp",t);
+  return location.origin+location.pathname+"?"+q.toString();}
+$("shareBtn").onclick=async()=>{const u=shareUrl();try{await navigator.clipboard.writeText(u);}catch(e){}status(T("copied",{u:`<a href="${u}">${u.length>90?u.slice(0,90)+"…":u}</a>`}));};
+const URLP=new URLSearchParams(location.search);
+$("place").onchange=()=>{const p=PRESETS[$("place").value];if(p){setPoint(p[0],p[1],false,10);autoRun();}};
+["lat","lon"].forEach(id=>$(id).onchange=()=>{$("place").value="custom";setPoint(+$("lat").value,+$("lon").value);autoRun();});
+$("run").onclick=runAnalysis;
+$("prev").onchange=()=>{$("prevOther").style.display=$("prev").value==="other"?"block":"none";if($("prev").value==="other")$("prevOther").focus();state.cl&&render();};
+$("prevOther").oninput=()=>{clearTimeout(window._pt);window._pt=setTimeout(()=>state.cl&&render(),500);};
+let layersCtl,baseSat,baseStreet,overLabels,cellRect,gTrue,gNdvi,gLst;
+const gibsUrl=(layer,tms,ext,date)=>`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${date}/${tms}/{z}/{y}/{x}.${ext}`;
+const ndviDate=d=>new Date(Date.parse(d)-12*864e5).toISOString().slice(0,10); // 8-day composite needs a finished period
+function setupLayers(){
+  if(layersCtl)map.removeControl(layersCtl);
+  layersCtl=L.control.layers({[T("sat")]:baseSat,[T("streets")]:baseStreet,[T("l_true")]:gTrue},{[T("l_ndvi")]:gNdvi,[T("l_lst")]:gLst,[T("labels")]:overLabels,[T("cell")]:cellRect},{position:"topright",collapsed:true}).addTo(map);
+  cellRect.bindTooltip(T("cell"));}
+try{
+  map=L.map("map",{zoomControl:true}).setView([38.6,69.2],7);
+  baseSat=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Imagery © Esri, Maxar, Earthstar Geographics"});
+  baseStreet=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});
+  overLabels=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",{maxZoom:19});
+  baseSat.addTo(map);overLabels.addTo(map);
+  const d0=new Date(Date.now()-3*864e5).toISOString().slice(0,10);$("gibsDate").value=d0;$("gibsDate").max=new Date().toISOString().slice(0,10);
+  gTrue=L.tileLayer(gibsUrl("MODIS_Terra_CorrectedReflectance_TrueColor","GoogleMapsCompatible_Level9","jpg",d0),{maxZoom:19,maxNativeZoom:9,attribution:"NASA GIBS / EOSDIS"});
+  gNdvi=L.tileLayer(gibsUrl("MODIS_Terra_NDVI_8Day","GoogleMapsCompatible_Level9","png",ndviDate(d0)),{maxZoom:19,maxNativeZoom:9,opacity:.75,attribution:"NASA GIBS / EOSDIS"});
+  gLst=L.tileLayer(gibsUrl("MODIS_Terra_Land_Surface_Temp_Day","GoogleMapsCompatible_Level7","png",d0),{maxZoom:19,maxNativeZoom:7,opacity:.7,attribution:"NASA GIBS / EOSDIS"});
+  $("gibsDate").onchange=()=>{const d=$("gibsDate").value;if(!d)return;
+    gTrue.setUrl(gibsUrl("MODIS_Terra_CorrectedReflectance_TrueColor","GoogleMapsCompatible_Level9","jpg",d));
+    gNdvi.setUrl(gibsUrl("MODIS_Terra_NDVI_8Day","GoogleMapsCompatible_Level9","png",ndviDate(d)));
+    gLst.setUrl(gibsUrl("MODIS_Terra_Land_Surface_Temp_Day","GoogleMapsCompatible_Level7","png",d));
+    if(!map.hasLayer(gTrue)&&!map.hasLayer(gNdvi)&&!map.hasLayer(gLst))gNdvi.addTo(map);};
+  L.control.scale({metric:true,imperial:false}).addTo(map);
+  cellRect=L.rectangle([[0,0],[0.1,0.1]],{color:"#ffd166",weight:2,fill:true,fillOpacity:.06,dashArray:"6 6"}).addTo(map);
+  marker=L.marker([0,0],{icon:L.divIcon({className:"",html:'<div class="pin"></div>',iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-26]}),draggable:true}).addTo(map);
+  marker.on("dragend",()=>{const p=marker.getLatLng();$("place").value="custom";setPoint(p.lat,p.lng,true);autoRun();});
+  map.on("click",e=>{$("place").value="custom";setPoint(e.latlng.lat,e.latlng.lng,true);autoRun();});
+  setupLayers();
+}catch(e){map=null;$("mapcard").style.display="none";}
+if(URLP.get("lang")&&UI.title[URLP.get("lang")]){$("lang").value=URLP.get("lang");LANG=URLP.get("lang");buildForm();}
+if(URLP.get("cur")&&CURRENT[URLP.get("cur")])document.querySelector(`input[name=cur][value=${URLP.get("cur")}]`).checked=true;
+if(URLP.get("wl")&&WATER[URLP.get("wl")])document.querySelector(`input[name=wl][value=${URLP.get("wl")}]`).checked=true;
+if(URLP.get("prev")&&PREV[URLP.get("prev")]){$("prev").value=URLP.get("prev");if(URLP.get("prev")==="other"){$("prevOther").style.display="block";$("prevOther").value=URLP.get("po")||"";}}
+if(URLP.get("w")){const v=URLP.get("w").split(",").map(Number);["water","income","soil","forage","risk"].forEach((k,i)=>{if(v[i]>=0&&v[i]<=5){$("w_"+k).value=v[i];$("v_"+k).textContent=v[i];}});}
+if(URLP.get("rain"))$("s_rain").value=URLP.get("rain");if(URLP.get("temp"))$("s_temp").value=URLP.get("temp");applyScenario(false);
+if(URLP.get("lat")&&URLP.get("lon")&&isFinite(+URLP.get("lat"))&&isFinite(+URLP.get("lon"))){$("place").value="custom";setPoint(+URLP.get("lat"),+URLP.get("lon"),false,12);}
+else setPoint(...PRESETS["Вахш / Бохтар (Хатлон)"],false,9);
+let meMarker;
+$("locBtn").onclick=()=>{if(!navigator.geolocation){status(T("geoerr",{e:"n/a"}),"warn");return;}
+  navigator.geolocation.getCurrentPosition(p=>{const{latitude:a,longitude:o}=p.coords;$("place").value="custom";setPoint(a,o,false,15);autoRun();
+    if(map){meMarker?meMarker.setLatLng([a,o]):meMarker=L.marker([a,o],{icon:L.divIcon({className:"",html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);}},
+    e=>status(T("geoerr",{e:e.message}),"warn"),{enableHighAccuracy:true,timeout:15000});};
+async function doSearch(){const q=$("search").value.trim();if(!q)return;
+  try{let r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=tj&accept-language=${LANG==="en"?"en":"ru"}&q=${encodeURIComponent(q)}`);let j=await r.json();
+    if(!j.length){r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);j=await r.json();}
+    if(!j.length){status(T("notfound",{q}),"warn");return;}
+    $("place").value="custom";setPoint(+j[0].lat,+j[0].lon,false,13);autoRun();}
+  catch(e){status(T("notfound",{q})+" ("+e.message+")","warn");}}
+$("searchBtn").onclick=doSearch;$("search").addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
+$("bigBtn").onclick=()=>{$("mapcard").classList.toggle("big");setTimeout(()=>map&&map.invalidateSize(),50);};
+function langPick(k){$("lang").value=k;$("lang").onchange();}
+function goalOf(){const w={};["water","income","soil","forage","risk"].forEach(k=>w[k]=+$("w_"+k).value);
+  for(const[g,v]of Object.entries(PRIO))if(Object.keys(v).every(k=>v[k]===w[k]))return g;return null;}
+function drawGoals(){const g=goalOf(),em={water:"💧",income:"💰",soil:"🌱",forage:"🐄"};
+  $("goalBox").innerHTML=Object.keys(PRIO).map(k=>`<button class="${k===g?"on":""}" onclick="setGoal('${k}')">${em[k]} ${S("p_"+k)}</button>`).join("");}
+function setGoal(k){for(const[w,x]of Object.entries(PRIO[k])){$("w_"+w).value=x;$("v_"+w).textContent=x;}drawGoals();if(state.cl)render();}
+function drawLangs(){$("hlang").innerHTML=[["en","Eng"],["ru","Рус"],["tj","Тоҷ"]].map(([k,l])=>`<button class="${k===LANG?"on":""}" onclick="langPick('${k}')">${l}</button>`).join("");}
+function renderAnswer(){const el=$("answer");if(!state.table){el.innerHTML="";return;}
+  const t=state.table,cur=t[0],best=[...t].sort((a,b)=>b.score-a.score)[0];
+  const d=cur.irrigation_mm-best.irrigation_mm,dt=Math.abs(d)<10?S("eq"):d>0?S("less",{v:d}):S("more",{v:-d}),risk=best.ex.risks[0];
+  el.innerHTML=`<div class="answer"><div class="ok">${S("ok")}</div><h2>${best.name.replace(/ \(.*\)/,"")}</h2>
+    ${best.key===cur.key?`<div class="fact"><span class="em">👍</span><span>${S("same")}</span></div>`:""}
+    <div class="fact"><span class="em">💧</span><span>${S("f_water",{v:best.irrigation_mm,d:dt})}</span></div>
+    <div class="fact"><span class="em">🌱</span><span>${S("f_bare",{v:best.bare_months,c:cur.bare_months})}</span></div>
+    ${risk?`<div class="fact"><span class="em">⚠️</span><span>${S("f_risk",{v:risk})}</span></div>`:""}
+    <div class="fact"><span class="em">🛰️</span><span style="color:#bfd0e4">${S("f_src",{a:state.cl.y1,b:state.cl.y2})}</span></div>
+    <details class="why"><summary style="cursor:pointer;font-size:16px">${S("why")}</summary><p>${best.ex.why}</p>
+      <ul>${[...best.ex.benefits,...best.ex.evidence].map(x=>`<li>${x}</li>`).join("")}</ul></details></div>`;}
+// load NASA satellite data immediately on open
+runAnalysis();
+</script>
+</body>
+</html>
